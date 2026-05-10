@@ -34,4 +34,32 @@ model User {
   projects      Json?    @default("[]")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  // Relations
+  sentLikes     Like[]   @relation("SentLikes")
+  receivedLikes Like[]   @relation("ReceivedLikes")
+  matches1      Match[]  @relation("MatchUser1")
+  matches2      Match[]  @relation("MatchUser2")
+}
+
+model Like {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  sender     User     @relation("SentLikes", fields: [senderId], references: [id])
+  receiver   User     @relation("ReceivedLikes", fields: [receiverId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([senderId, receiverId])
+}
+
+model Match {
+  id        String   @id @default(uuid())
+  user1Id   String
+  user2Id   String
+  user1     User     @relation("MatchUser1", fields: [user1Id], references: [id])
+  user2     User     @relation("MatchUser2", fields: [user2Id], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([user1Id, user2Id])
 }

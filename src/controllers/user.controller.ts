@@ -140,3 +140,101 @@ export const deleteAccount = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+export const getDiscoverUsers = async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore
+    const currentUserId = req.userId;
+    const { page = 1, skills, intent, experienceLevel, search } = req.query;
+    const limit = 10;
+    const skip = (Number(page) - 1) * limit;
+
+    // 1. Get IDs of users current user has already liked
+    const likedUserIds = await prisma.like.findMany({
+      where: { senderId: currentUserId },
+      select: { receiverId: true }
+    }).then(likes => likes.map(l => l.receiverId));
+
+    // 2. Build where clause
+    const where: any = {
+      id: {
+        notIn: [currentUserId, ...likedUserIds]
+      }
+    };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: String(search), mode: 'insensitive' } },
+        { bio: { contains: String(search), mode: 'insensitive' } },
+        { skills: { hasSome: [String(search)] } }
+      ];
+    }
+
+    if (skills) {
+      const skillsArray = String(skills).split(',').map(s => s.trim()).filter(Boolean);
+      if (skillsArray.length > 0) {
+        where.skills = { hasSome: skillsArray };
+      }
+    }
+
+    if (intent) {
+      where.intent = String(intent);
+    }
+
+    if (experienceLevel) {
+      where.experienceLevel = String(experienceLevel);
+    }
+
+    // 3. Fetch users
+    const users = await prisma.user.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const currentUser = await prisma.user.findUnique({ where: { id: currentUserId } });
+
+    // 4. Calculate compatibility scores
+    const usersWithScore = users.map(user => {
+      let score = 0;
+      if (currentUser) {
+        // Shared skills (40%)
+        const sharedSkills = user.skills.filter(s => currentUser.skills.includes(s));
+        const totalSkills = Array.from(new Set([...user.skills, ...currentUser.skills])).length;
+        if (totalSkills > 0) {
+           score += (sharedSkills.length / totalSkills) * 40;
+        }
+
+        // Shared interests (30%)
+        const sharedInterests = user.interests.filter(i => currentUser.interests.includes(i));
+        const totalInterests = Array.from(new Set([...user.interests, ...currentUser.interests])).length;
+        if (totalInterests > 0) {
+           score += (sharedInterests.length / totalInterests) * 30;
+        }
+
+        // Same intent (20%)
+        if (user.intent && currentUser.intent && user.intent === currentUser.intent) {
+          score += 20;
+        }
+
+        // Same location (10%)
+        if (user.location && currentUser.location && user.location.toLowerCase() === currentUser.location.toLowerCase()) {
+          score += 10;
+        }
+      }
+
+      // @ts-ignore
+      delete user.password;
+      return {
+        ...user,
+        compatibilityScore: Math.round(score) || 0
+      };
+    });
+
+    res.status(200).json(usersWithScore);
+  } catch (error) {
+    console.error('Discover users error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
