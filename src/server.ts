@@ -27,6 +27,12 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Merge Backend is running' });
 });
 
+// Error Handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('SERVER ERROR:', err);
+  res.status(500).json({ message: 'Internal server error', error: err.message });
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
