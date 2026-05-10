@@ -19,7 +19,19 @@ model User {
   avatar        String?
   bio           String?
   skills        String[] @default([])
-  role          String?
+  experienceLevel String?
+  interests     String[] @default([])
+  intent        String?
+  location      String?
+  website       String?
+  twitter       String?
+  linkedin      String?
+  githubUrl     String?
+  personality   String?
+  status        String?
+  badges        String[] @default([])
+  activity      Json?    @default("[]")
+  projects      Json?    @default("[]")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
