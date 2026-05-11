@@ -38,6 +38,8 @@ model User {
   // Relations
   sentLikes     Like[]    @relation("SentLikes")
   receivedLikes Like[]    @relation("ReceivedLikes")
+  sentSkips     Skip[]    @relation("SentSkips")
+  receivedSkips Skip[]    @relation("ReceivedSkips")
   matches1      Match[]   @relation("MatchUser1")
   matches2      Match[]   @relation("MatchUser2")
   chats         Chat[]    @relation("UserChats")
@@ -85,4 +87,15 @@ model Message {
   sender    User     @relation(fields: [senderId], references: [id])
   content   String
   createdAt DateTime @default(now())
+}
+
+model Skip {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  sender     User     @relation("SentSkips", fields: [senderId], references: [id])
+  receiver   User     @relation("ReceivedSkips", fields: [receiverId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([senderId, receiverId])
 }

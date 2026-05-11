@@ -41,9 +41,10 @@ export const register = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
+    const { password: _, ...userWithoutPassword } = user;
     res.status(201).json({
       message: 'User authenticated successfully',
-      user: { id: user.id, name: user.name, email: user.email },
+      user: userWithoutPassword,
       token
     });
   } catch (error) {
@@ -81,9 +82,10 @@ export const login = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
+    const { password: _, ...userWithoutPassword } = user;
     res.status(200).json({
       message: 'Login successful',
-      user: { id: user.id, name: user.name, email: user.email, avatar: user.avatar },
+      user: userWithoutPassword,
       token
     });
   } catch (error) {
@@ -102,8 +104,9 @@ export const me = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    const { password: _, ...userWithoutPassword } = user;
     res.status(200).json({
-      user: { id: user.id, name: user.name, email: user.email, avatar: user.avatar }
+      user: userWithoutPassword
     });
   } catch (error) {
     console.error('Get user error:', error);

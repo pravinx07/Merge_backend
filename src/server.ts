@@ -7,6 +7,7 @@ import { initSocket } from './socket';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import matchRoutes from './routes/match.routes';
+import swipeRoutes from './routes/swipe.routes';
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use(cookieParser());
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/matches', matchRoutes);
+app.use('/api/swipe', swipeRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
