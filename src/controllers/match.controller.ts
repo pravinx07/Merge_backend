@@ -37,6 +37,16 @@ export const likeUser = async (req: Request, res: Response) => {
       // Create a match
       // Note: We always store user1Id < user2Id to maintain uniqueness
       const [u1, u2] = [senderId, receiverId].sort();
+      
+      // Create a Chat first
+      const chat = await prisma.chat.create({
+        data: {
+          participants: {
+            connect: [{ id: senderId }, { id: receiverId }]
+          }
+        }
+      });
+
       match = await prisma.match.upsert({
         where: {
           user1Id_user2Id: {
@@ -46,12 +56,16 @@ export const likeUser = async (req: Request, res: Response) => {
         },
         create: {
           user1Id: u1,
-          user2Id: u2
+          user2Id: u2,
+          chatId: chat.id
         },
-        update: {},
+        update: {
+          chatId: chat.id
+        },
         include: {
           user1: { select: { id: true, name: true, avatar: true, bio: true } },
-          user2: { select: { id: true, name: true, avatar: true, bio: true } }
+          user2: { select: { id: true, name: true, avatar: true, bio: true } },
+          chat: true
         }
       });
     }
@@ -94,6 +108,7 @@ export const getMatches = async (req: Request, res: Response) => {
       const otherUser = match.user1Id === userId ? match.user2 : match.user1;
       return {
         id: match.id,
+        chatId: match.chatId,
         matchedAt: match.createdAt,
         user: otherUser
       };
@@ -102,6 +117,49 @@ export const getMatches = async (req: Request, res: Response) => {
     res.status(200).json(formattedMatches);
   } catch (error) {
     console.error('Get matches error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getMessages = async (req: Request, res: Response) => {
+  try {
+    const { chatId } = req.params;
+    
+    const messages = await prisma.message.findMany({
+      where: { chatId },
+      include: {
+        sender: { select: { id: true, name: true, avatar: true } }
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    res.status(200).json(messages);
+  } catch (error) {
+    console.error('Get messages error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const sendMessage = async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore
+    const senderId = req.userId;
+    const { chatId, content } = req.body;
+
+    const message = await prisma.message.create({
+      data: {
+        content,
+        chatId,
+        senderId
+      },
+      include: {
+        sender: { select: { id: true, name: true, avatar: true } }
+      }
+    });
+
+    res.status(201).json(message);
+  } catch (error) {
+    console.error('Send message error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

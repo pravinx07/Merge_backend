@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import http from 'http';
+import { initSocket } from './socket';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import matchRoutes from './routes/match.routes';
@@ -9,7 +11,11 @@ import matchRoutes from './routes/match.routes';
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
+
+// Initialize Socket.io
+initSocket(server);
 
 // Middleware
 app.use(cors({
@@ -35,6 +41,6 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(500).json({ message: 'Internal server error', error: err.message });
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });

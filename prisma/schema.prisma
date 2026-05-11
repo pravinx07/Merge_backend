@@ -36,10 +36,12 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // Relations
-  sentLikes     Like[]   @relation("SentLikes")
-  receivedLikes Like[]   @relation("ReceivedLikes")
-  matches1      Match[]  @relation("MatchUser1")
-  matches2      Match[]  @relation("MatchUser2")
+  sentLikes     Like[]    @relation("SentLikes")
+  receivedLikes Like[]    @relation("ReceivedLikes")
+  matches1      Match[]   @relation("MatchUser1")
+  matches2      Match[]   @relation("MatchUser2")
+  chats         Chat[]    @relation("UserChats")
+  messages      Message[]
 }
 
 model Like {
@@ -59,7 +61,28 @@ model Match {
   user2Id   String
   user1     User     @relation("MatchUser1", fields: [user1Id], references: [id])
   user2     User     @relation("MatchUser2", fields: [user2Id], references: [id])
+  chatId    String?  @unique
+  chat      Chat?    @relation(fields: [chatId], references: [id])
   createdAt DateTime @default(now())
 
   @@unique([user1Id, user2Id])
+}
+
+model Chat {
+  id           String    @id @default(uuid())
+  participants User[]    @relation("UserChats")
+  match        Match?
+  messages     Message[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
 }
