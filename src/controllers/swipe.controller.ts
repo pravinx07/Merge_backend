@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../Config/prisma';
+import { sendMatchEmail } from '../services/emailService';
 
 export const getSwipeFeed = async (req: Request, res: Response) => {
   try {
@@ -129,6 +130,13 @@ export const swipeRight = async (req: Request, res: Response) => {
           user2: true
         }
       });
+
+      // Send match notification emails to both users
+      const user1 = match.user1;
+      const user2 = match.user2;
+      
+      sendMatchEmail(user1.email, user1.name, user2.name).catch(console.error);
+      sendMatchEmail(user2.email, user2.name, user1.name).catch(console.error);
 
       return res.status(200).json({
         isMatch: true,
