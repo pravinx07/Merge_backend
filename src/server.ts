@@ -8,7 +8,7 @@ import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import matchRoutes from './routes/match.routes';
 import swipeRoutes from './routes/swipe.routes';
-
+import projectRoutes from './routes/project.routes';
 dotenv.config();
 
 const app = express();
@@ -31,6 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/swipe', swipeRoutes);
+app.use('/api/projects', projectRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
