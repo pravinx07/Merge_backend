@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { getSwipeFeed, swipeRight, swipeLeft } from '../controllers/swipe.controller';
-import { protect } from '../middlewares/auth.middleware';
+import { authenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-router.get('/feed', protect, getSwipeFeed);
-router.post('/right', protect, swipeRight);
-router.post('/left', protect, swipeLeft);
+router.get('/feed', authenticate, getSwipeFeed);
+router.post('/right', authenticate, swipeRight);
+router.post('/left', authenticate, swipeLeft);
 
 export default router;
