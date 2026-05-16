@@ -238,3 +238,32 @@ export const getDiscoverUsers = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+export const getCommunityUsers = async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore
+    const currentUserId = req.userId;
+    const users = await prisma.user.findMany({
+      where: {
+        id: { not: currentUserId }
+      },
+      select: {
+        id: true,
+        name: true,
+        avatar: true,
+        bio: true,
+        skills: true,
+        location: true,
+        status: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    });
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('Get community users error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
