@@ -52,6 +52,11 @@ model User {
   projectMemberships  ProjectMember[]      @relation("ProjectMemberships")
   projectApplications ProjectJoinRequest[] @relation("ProjectApplications")
   projectMessages     ProjectMessage[]     @relation("ProjectMessages")
+
+  // Feed Relations
+  posts               Post[]               @relation("UserPosts")
+  postLikes           PostLike[]           @relation("UserPostLikes")
+  comments            Comment[]            @relation("UserComments")
 }
 
 model Like {
@@ -162,4 +167,38 @@ model ProjectMessage {
   sender    User     @relation("ProjectMessages", fields: [senderId], references: [id])
   content   String
   createdAt DateTime @default(now())
+}
+
+model Post {
+  id        String     @id @default(uuid())
+  authorId  String
+  author    User       @relation("UserPosts", fields: [authorId], references: [id])
+  content   String
+  postType  String     @default("Update") // Update, Collaboration, Achievement, GitHub, Auto
+  likes     PostLike[]
+  comments  Comment[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model PostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id])
+  userId    String
+  user      User     @relation("UserPostLikes", fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id])
+  authorId  String
+  author    User     @relation("UserComments", fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
