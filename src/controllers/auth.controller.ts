@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../Config/prisma';
 import axios from 'axios';
+import crypto from 'crypto';
+import { sendWelcomeEmail, sendForgotPasswordEmail } from '../services/emailService';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey123';
 
@@ -41,9 +43,13 @@ export const register = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
+    // Send welcome email
+    sendWelcomeEmail(user.email, user.name).catch(console.error);
+
+    const { password: _, ...userWithoutPassword } = user;
     res.status(201).json({
       message: 'User authenticated successfully',
-      user: { id: user.id, name: user.name, email: user.email },
+      user: userWithoutPassword,
       token
     });
   } catch (error) {
@@ -81,9 +87,10 @@ export const login = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
+    const { password: _, ...userWithoutPassword } = user;
     res.status(200).json({
       message: 'Login successful',
-      user: { id: user.id, name: user.name, email: user.email, avatar: user.avatar },
+      user: userWithoutPassword,
       token
     });
   } catch (error) {
@@ -102,8 +109,9 @@ export const me = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    const { password: _, ...userWithoutPassword } = user;
     res.status(200).json({
-      user: { id: user.id, name: user.name, email: user.email, avatar: user.avatar }
+      user: userWithoutPassword
     });
   } catch (error) {
     console.error('Get user error:', error);
@@ -210,5 +218,73 @@ export const githubCallback = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('GitHub OAuth error:', error);
     res.status(500).json({ message: 'Authentication failed' });
+  }
+};
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ message: 'No account found with this email address.' });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetPasswordToken: resetToken,
+        resetPasswordExpires: resetTokenExpiry,
+      },
+    });
+
+    await sendForgotPasswordEmail(user.email, resetToken);
+
+    res.status(200).json({ message: 'A password reset link has been sent to your email.' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ message: 'Token and password are required' });
+
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters' });
+    }
+
+    const user = await prisma.user.findFirst({
+      where: {
+        resetPasswordToken: token,
+        resetPasswordExpires: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+      },
+    });
+
+    res.status(200).json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };

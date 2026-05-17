@@ -34,4 +34,132 @@ model User {
   projects      Json?    @default("[]")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  resetPasswordToken String?
+  resetPasswordExpires DateTime?
+
+  // Relations
+  sentLikes     Like[]    @relation("SentLikes")
+  receivedLikes Like[]    @relation("ReceivedLikes")
+  sentSkips     Skip[]    @relation("SentSkips")
+  receivedSkips Skip[]    @relation("ReceivedSkips")
+  matches1      Match[]   @relation("MatchUser1")
+  matches2      Match[]   @relation("MatchUser2")
+  chats         Chat[]    @relation("UserChats")
+  messages      Message[]
+
+  // Project Relations
+  ownedProjects       Project[]            @relation("ProjectOwner")
+  projectMemberships  ProjectMember[]      @relation("ProjectMemberships")
+  projectApplications ProjectJoinRequest[] @relation("ProjectApplications")
+  projectMessages     ProjectMessage[]     @relation("ProjectMessages")
+}
+
+model Like {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  sender     User     @relation("SentLikes", fields: [senderId], references: [id])
+  receiver   User     @relation("ReceivedLikes", fields: [receiverId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([senderId, receiverId])
+}
+
+model Match {
+  id        String   @id @default(uuid())
+  user1Id   String
+  user2Id   String
+  user1     User     @relation("MatchUser1", fields: [user1Id], references: [id])
+  user2     User     @relation("MatchUser2", fields: [user2Id], references: [id])
+  chatId    String?  @unique
+  chat      Chat?    @relation(fields: [chatId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([user1Id, user2Id])
+}
+
+model Chat {
+  id           String    @id @default(uuid())
+  participants User[]    @relation("UserChats")
+  match        Match?
+  messages     Message[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model Skip {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  sender     User     @relation("SentSkips", fields: [senderId], references: [id])
+  receiver   User     @relation("ReceivedSkips", fields: [receiverId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([senderId, receiverId])
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  techStack   String[]
+  lookingFor  String[]
+  projectType String?
+  teamSize    Int?
+  location    String?  // Remote/In-person
+  status      String   @default("Idea") // Idea, Building, MVP, Launched, Paused
+  ownerId     String
+  owner       User     @relation("ProjectOwner", fields: [ownerId], references: [id])
+  
+  members     ProjectMember[]
+  requests    ProjectJoinRequest[]
+  messages    ProjectMessage[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  userId    String
+  user      User     @relation("ProjectMemberships", fields: [userId], references: [id])
+  role      String   @default("Member")
+  joinedAt  DateTime @default(now())
+
+  @@unique([projectId, userId])
+}
+
+model ProjectJoinRequest {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  applicantId String
+  applicant   User     @relation("ProjectApplications", fields: [applicantId], references: [id])
+  message     String
+  status      String   @default("Pending") // Pending, Accepted, Rejected
+  createdAt   DateTime @default(now())
+
+  @@unique([projectId, applicantId])
+}
+
+model ProjectMessage {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  senderId  String
+  sender    User     @relation("ProjectMessages", fields: [senderId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
 }
