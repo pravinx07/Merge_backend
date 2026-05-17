@@ -9,6 +9,7 @@ import userRoutes from './routes/user.routes';
 import matchRoutes from './routes/match.routes';
 import swipeRoutes from './routes/swipe.routes';
 import projectRoutes from './routes/project.routes';
+import postRoutes from './routes/post.routes';
 dotenv.config();
 
 const app = express();
@@ -32,6 +33,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/swipe', swipeRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/posts', postRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {

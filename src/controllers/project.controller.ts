@@ -1,7 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../Config/prisma';
 
 // Create a new project
 export const createProject = async (req: Request, res: Response): Promise<void> => {
@@ -45,6 +43,15 @@ export const createProject = async (req: Request, res: Response): Promise<void> 
             user: { select: { id: true, name: true, avatar: true } }
           }
         }
+      }
+    });
+
+    // Create an auto-post about the new project
+    await prisma.post.create({
+      data: {
+        content: `Launched a new project: ${title} 🚀`,
+        postType: 'Auto',
+        authorId: ownerId,
       }
     });
 
@@ -208,6 +215,14 @@ export const handleApplication = async (req: Request, res: Response): Promise<vo
             projectId: projectId as string,
             userId: request.applicantId,
             role: 'Member'
+          }
+        }),
+        // Create an auto-post about user joining project
+        prisma.post.create({
+          data: {
+            content: `Joined the project ${project.title} as a Member! ✨`,
+            postType: 'Auto',
+            authorId: request.applicantId,
           }
         })
       ]);
