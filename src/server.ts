@@ -10,6 +10,10 @@ import matchRoutes from './routes/match.routes';
 import swipeRoutes from './routes/swipe.routes';
 import projectRoutes from './routes/project.routes';
 import postRoutes from './routes/post.routes';
+import logger from './Config/logger';
+import { httpLoggerMiddleware, errorHandlerMiddleware } from './middlewares/logger.middleware';
+import prisma from './Config/prisma';
+
 dotenv.config();
 
 const app = express();
@@ -27,6 +31,9 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// Request logging middleware (logs all incoming HTTP requests automatically)
+app.use(httpLoggerMiddleware);
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -40,12 +47,52 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Merge Backend is running' });
 });
 
-// Error Handler
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('SERVER ERROR:', err);
-  res.status(500).json({ message: 'Internal server error', error: err.message });
+// Advanced Global Error Handling Middleware (logs failures cleanly to file and console)
+app.use(errorHandlerMiddleware);
+
+// -------------------------------------------------------------
+// 4. Graceful Shutdown & Process Crash Handling
+// -------------------------------------------------------------
+const handleGracefulShutdown = async (errorName: string, error: any) => {
+  logger.error(`CRITICAL: Server is crashing due to ${errorName}!`, {
+    message: error?.message || error,
+    stack: error?.stack,
+  });
+
+  logger.info('Initiating graceful shutdown procedures...');
+
+  // Disconnect from the database cleanly
+  try {
+    await prisma.$disconnect();
+    logger.info('Disconnected from database successfully.');
+  } catch (dbError: any) {
+    logger.error('Error disconnecting database during shutdown:', dbError);
+  }
+
+  // Close the server (stop accepting new requests)
+  server.close(() => {
+    logger.info('HTTP server closed. Exiting process.');
+    process.exit(1);
+  });
+
+  // Force shutdown after 5 seconds if graceful termination hangs
+  setTimeout(() => {
+    logger.error('Graceful shutdown timed out. Forcing termination.');
+    process.exit(1);
+  }, 5000);
+};
+
+// Listen for uncaught exception (synchronous syntax/ref errors)
+process.on('uncaughtException', (error) => {
+  handleGracefulShutdown('Uncaught Exception', error);
 });
 
+// Listen for unhandled promise rejections (async errors)
+process.on('unhandledRejection', (reason) => {
+  handleGracefulShutdown('Unhandled Rejection', reason);
+});
+
+// Start the server
 server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  logger.info(`Server is successfully running on port ${PORT}`);
 });
