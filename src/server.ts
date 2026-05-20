@@ -10,6 +10,7 @@ import matchRoutes from './routes/match.routes';
 import swipeRoutes from './routes/swipe.routes';
 import projectRoutes from './routes/project.routes';
 import postRoutes from './routes/post.routes';
+import githubRoutes from './routes/github.routes';
 import logger from './Config/logger';
 import { httpLoggerMiddleware, errorHandlerMiddleware } from './middlewares/logger.middleware';
 import prisma from './Config/prisma';
@@ -42,6 +43,7 @@ app.use('/api/matches', matchRoutes);
 app.use('/api/swipe', swipeRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/github', githubRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {

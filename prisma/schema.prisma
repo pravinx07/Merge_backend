@@ -36,6 +36,8 @@ model User {
   updatedAt     DateTime @updatedAt
   resetPasswordToken String?
   resetPasswordExpires DateTime?
+  githubVerified      Boolean  @default(false)
+  githubData          Json?    @default("{}")
 
   // Relations
   sentLikes     Like[]    @relation("SentLikes")
