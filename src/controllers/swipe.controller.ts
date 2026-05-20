@@ -138,6 +138,25 @@ export const swipeRight = async (req: Request, res: Response) => {
       sendMatchEmail(user1.email, user1.name, user2.name).catch(console.error);
       sendMatchEmail(user2.email, user2.name, user1.name).catch(console.error);
 
+      // Socket notification
+      const io = req.app.get('io');
+      if (io) {
+        const u1Safe = { id: user1.id, name: user1.name, avatar: user1.avatar, status: user1.status };
+        const u2Safe = { id: user2.id, name: user2.name, avatar: user2.avatar, status: user2.status };
+        io.to(senderId).emit('match_created', {
+          id: match.id,
+          chatId: chat.id,
+          matchedAt: match.createdAt,
+          user: u2Safe
+        });
+        io.to(receiverId).emit('match_created', {
+          id: match.id,
+          chatId: chat.id,
+          matchedAt: match.createdAt,
+          user: u1Safe
+        });
+      }
+
       return res.status(200).json({
         isMatch: true,
         match: {

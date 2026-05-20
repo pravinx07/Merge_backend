@@ -163,8 +163,24 @@ export const applyToProject = async (req: Request, res: Response): Promise<void>
         projectId: projectId as string,
         applicantId,
         message: message || "I'd like to join your project."
+      },
+      include: {
+        applicant: { select: { name: true } },
+        project: { select: { title: true, ownerId: true } }
       }
     });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(request.project.ownerId).emit('project_application_received', {
+        id: request.id,
+        projectId: request.projectId,
+        projectTitle: request.project.title,
+        applicantName: request.applicant.name,
+        message: request.message,
+        status: request.status
+      });
+    }
 
     res.status(201).json(request);
   } catch (error) {
@@ -230,6 +246,15 @@ export const handleApplication = async (req: Request, res: Response): Promise<vo
       await prisma.projectJoinRequest.update({
         where: { id: appId },
         data: { status: 'Rejected' }
+      });
+    }
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(request.applicantId).emit('project_application_handled', {
+        projectId,
+        projectTitle: project.title,
+        status
       });
     }
 

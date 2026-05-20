@@ -70,6 +70,26 @@ export const likeUser = async (req: Request, res: Response) => {
       });
     }
 
+    if (isMatch && match) {
+      const io = req.app.get('io');
+      if (io) {
+        const u1Safe = { id: match.user1.id, name: match.user1.name, avatar: match.user1.avatar, status: null };
+        const u2Safe = { id: match.user2.id, name: match.user2.name, avatar: match.user2.avatar, status: null };
+        io.to(senderId).emit('match_created', {
+          id: match.id,
+          chatId: match.chatId,
+          matchedAt: match.createdAt,
+          user: match.user1Id === senderId ? u2Safe : u1Safe
+        });
+        io.to(receiverId).emit('match_created', {
+          id: match.id,
+          chatId: match.chatId,
+          matchedAt: match.createdAt,
+          user: match.user1Id === senderId ? u1Safe : u2Safe
+        });
+      }
+    }
+
     res.status(200).json({
       message: isMatch ? "It's a match!" : "Liked successfully",
       isMatch,

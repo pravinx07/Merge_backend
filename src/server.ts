@@ -21,7 +21,8 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
 // Initialize Socket.io
-initSocket(server);
+const io = initSocket(server);
+app.set('io', io);
 
 // Middleware
 app.use(cors({
