@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../Config/prisma';
+import { cacheService } from '../services/cacheService';
 
 export const createPost = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -176,45 +177,57 @@ export const getComments = async (req: Request, res: Response): Promise<void> =>
 export const getTrending = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
-    // Trending could be simple for now: users with most projects or activity
-    const trendingDevelopers = await prisma.user.findMany({
-      take: 3,
-      where: {
-        id: { not: userId }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      select: {
-        id: true,
-        name: true,
-        avatar: true,
-        bio: true,
-        skills: true
-      }
-    });
 
-    const trendingProjects = await prisma.project.findMany({
-      take: 3,
-      where: {
-        status: { in: ['Building', 'MVP', 'Launched'] }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        techStack: true,
-        owner: {
-          select: { id: true, name: true, avatar: true }
+    // Fetch trending developers from cache or DB
+    let trendingDevelopers = cacheService.get<any[]>('trending:developers');
+    if (!trendingDevelopers) {
+      trendingDevelopers = await prisma.user.findMany({
+        take: 10, // Fetch slightly more to filter out current user dynamically
+        orderBy: {
+          createdAt: 'desc'
+        },
+        select: {
+          id: true,
+          name: true,
+          avatar: true,
+          bio: true,
+          skills: true
         }
-      }
-    });
+      });
+      cacheService.set('trending:developers', trendingDevelopers, 600); // 10 minutes cache
+    }
+
+    // Filter out the current user and limit to top 3 in-memory
+    const filteredDevelopers = trendingDevelopers
+      .filter(dev => dev.id !== userId)
+      .slice(0, 3);
+
+    // Fetch trending projects from cache or DB
+    let trendingProjects = cacheService.get<any[]>('trending:projects');
+    if (!trendingProjects) {
+      trendingProjects = await prisma.project.findMany({
+        take: 3,
+        where: {
+          status: { in: ['Building', 'MVP', 'Launched'] }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          techStack: true,
+          owner: {
+            select: { id: true, name: true, avatar: true }
+          }
+        }
+      });
+      cacheService.set('trending:projects', trendingProjects, 600); // 10 minutes cache
+    }
 
     res.status(200).json({
-      trendingDevelopers,
+      trendingDevelopers: filteredDevelopers,
       trendingProjects
     });
   } catch (error) {
