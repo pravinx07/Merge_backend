@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 import prisma from '../Config/prisma';
 import logger from '../Config/logger';
+import { cacheService } from '../services/cacheService';
 
 export const connectGithub = async (req: Request, res: Response) => {
   try {
@@ -16,13 +17,29 @@ export const connectGithub = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'GitHub username is required' });
     }
 
-    // Fetch user profile from GitHub
-    const userRes = await axios.get(`https://api.github.com/users/${username}`);
-    const githubUser = userRes.data;
+    // Cache keys
+    const cacheKeyProfile = `github:profile:${username}`;
+    const cacheKeyRepos = `github:repos:${username}`;
 
-    // Fetch user repos
-    const reposRes = await axios.get(`https://api.github.com/users/${username}/repos?sort=updated&per_page=100`);
-    const repos = reposRes.data;
+    // Try fetching from cache
+    let githubUser = cacheService.get<any>(cacheKeyProfile);
+    let repos = cacheService.get<any[]>(cacheKeyRepos);
+
+    if (!githubUser) {
+      // Fetch user profile from GitHub
+      const userRes = await axios.get(`https://api.github.com/users/${username}`);
+      githubUser = userRes.data;
+      // Cache profile for 4 hours (14400 seconds)
+      cacheService.set(cacheKeyProfile, githubUser, 14400);
+    }
+
+    if (!repos) {
+      // Fetch user repos
+      const reposRes = await axios.get(`https://api.github.com/users/${username}/repos?sort=updated&per_page=100`);
+      repos = reposRes.data;
+      // Cache repos for 4 hours (14400 seconds)
+      cacheService.set(cacheKeyRepos, repos, 14400);
+    }
 
     // Calculate top languages
     const languageCounts: Record<string, number> = {};
