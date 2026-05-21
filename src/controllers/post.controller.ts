@@ -175,9 +175,13 @@ export const getComments = async (req: Request, res: Response): Promise<void> =>
 
 export const getTrending = async (req: Request, res: Response): Promise<void> => {
   try {
+    const userId = (req as any).userId;
     // Trending could be simple for now: users with most projects or activity
     const trendingDevelopers = await prisma.user.findMany({
       take: 3,
+      where: {
+        id: { not: userId }
+      },
       orderBy: {
         createdAt: 'desc'
       },
