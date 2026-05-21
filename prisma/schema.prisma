@@ -59,6 +59,77 @@ model User {
   posts               Post[]               @relation("UserPosts")
   postLikes           PostLike[]           @relation("UserPostLikes")
   comments            Comment[]            @relation("UserComments")
+
+  // Hackathon Relations
+  hackathonTeamMemberships HackathonTeamMember[] @relation("HackathonTeamMemberships")
+  hackathonApplications    HackathonTeamJoinRequest[] @relation("HackathonApplications")
+  hackathonMessages        HackathonTeamMessage[] @relation("HackathonMessages")
+}
+
+model Hackathon {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  type        String   // "Online", "Local", "College"
+  duration    String   // e.g. "3 Days", "48 Hours"
+  location    String?  // e.g. "San Francisco, CA" or "Virtual"
+  startDate   DateTime @default(now())
+  endDate     DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teams       HackathonTeam[]
+}
+
+model HackathonTeam {
+  id          String   @id @default(uuid())
+  hackathonId String
+  hackathon   Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  name        String
+  description String
+  lookingFor  String[] @default([])
+  
+  members     HackathonTeamMember[]
+  requests    HackathonTeamJoinRequest[]
+  messages    HackathonTeamMessage[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model HackathonTeamMember {
+  id        String   @id @default(uuid())
+  teamId    String
+  team      HackathonTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("HackathonTeamMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("Member") // "Creator", "Member"
+  joinedAt  DateTime @default(now())
+
+  @@unique([teamId, userId])
+}
+
+model HackathonTeamJoinRequest {
+  id          String   @id @default(uuid())
+  teamId      String
+  team        HackathonTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  applicantId String
+  applicant   User     @relation("HackathonApplications", fields: [applicantId], references: [id], onDelete: Cascade)
+  message     String
+  status      String   @default("Pending") // "Pending", "Accepted", "Rejected"
+  createdAt   DateTime @default(now())
+
+  @@unique([teamId, applicantId])
+}
+
+model HackathonTeamMessage {
+  id        String   @id @default(uuid())
+  teamId    String
+  team      HackathonTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User     @relation("HackathonMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
 }
 
 model Like {
