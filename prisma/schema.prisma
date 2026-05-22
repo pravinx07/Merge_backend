@@ -64,6 +64,10 @@ model User {
   hackathonTeamMemberships HackathonTeamMember[] @relation("HackathonTeamMemberships")
   hackathonApplications    HackathonTeamJoinRequest[] @relation("HackathonApplications")
   hackathonMessages        HackathonTeamMessage[] @relation("HackathonMessages")
+
+  // Notifications
+  receivedNotifications    Notification[]         @relation("ReceivedNotifications")
+  sentNotifications        Notification[]         @relation("SentNotifications")
 }
 
 model Hackathon {
@@ -274,4 +278,18 @@ model Comment {
   content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  recipientId String
+  recipient   User     @relation("ReceivedNotifications", fields: [recipientId], references: [id], onDelete: Cascade)
+  senderId    String?
+  sender      User?    @relation("SentNotifications", fields: [senderId], references: [id], onDelete: Cascade)
+  type        String   // "match", "message", "project", "hackathon", "community", "follow"
+  message     String
+  entityId    String?  // The ID of the related entity
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

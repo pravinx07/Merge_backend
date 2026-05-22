@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../Config/prisma';
 import { sendMatchEmail } from '../services/emailService';
+import { NotificationService } from '../services/notification.service';
 
 export const getSwipeFeed = async (req: Request, res: Response) => {
   try {
@@ -138,8 +139,26 @@ export const swipeRight = async (req: Request, res: Response) => {
       sendMatchEmail(user1.email, user1.name, user2.name).catch(console.error);
       sendMatchEmail(user2.email, user2.name, user1.name).catch(console.error);
 
-      // Socket notification
+      // Socket notification and Database Notifications
       const io = req.app.get('io');
+      
+      // Create Notifications
+      await NotificationService.createNotification(io, {
+        recipientId: user1.id,
+        senderId: user2.id,
+        type: 'match',
+        message: `❤️ ${user2.name} matched with you`,
+        entityId: match.id,
+      });
+
+      await NotificationService.createNotification(io, {
+        recipientId: user2.id,
+        senderId: user1.id,
+        type: 'match',
+        message: `❤️ ${user1.name} matched with you`,
+        entityId: match.id,
+      });
+
       if (io) {
         const u1Safe = { id: user1.id, name: user1.name, avatar: user1.avatar, status: user1.status };
         const u2Safe = { id: user2.id, name: user2.name, avatar: user2.avatar, status: user2.status };
