@@ -34,6 +34,10 @@ jobs:
             username: ${{ secrets.EC2_USERNAME }}
             key: ${{ secrets.SSH_PRIVATE_KEY }}
             script: |
+               export PATH=$PATH:/usr/local/bin:/usr/bin
+
+               echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
                docker pull ${{ secrets.DOCKER_USERNAME }}/merge-backend:latest
 
                docker stop merge-backend || true
