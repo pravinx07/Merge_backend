@@ -7,7 +7,7 @@ COPY package*.json ./
 RUN npm install --legacy-peer-deps
 COPY . .
 
-RUN npx prisma generate
+RUN DATABASE_URL=dummy://placeholder npx prisma generate
 
 EXPOSE 5000
 
