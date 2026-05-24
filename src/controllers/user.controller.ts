@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../Config/prisma';
 
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { calculateBuilderScore } from '../services/builderScore.service';
 
 export const updateProfile = async (req: Request, res: Response) => {
@@ -91,10 +92,31 @@ export const getProfile = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Check if the requester is the owner
+    let isOwner = false;
+    const token = req.cookies?.token || req.headers.authorization?.split(' ')[1];
+    
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey123') as any;
+        if (decoded.userId === id) {
+          isOwner = true;
+        }
+      } catch (e) {}
+    }
+
     // Refresh builder score
     const updatedUser = await calculateBuilderScore(id);
     if (updatedUser) {
       user = updatedUser;
+    }
+
+    // Increment profile views if not owner
+    if (!isOwner) {
+      user = await prisma.user.update({
+        where: { id },
+        data: { profileViews: { increment: 1 } }
+      });
     }
 
     // @ts-ignore
