@@ -162,10 +162,21 @@ export const getDiscoverUsers = async (req: Request, res: Response) => {
       select: { receiverId: true }
     }).then(likes => likes.map(l => l.receiverId));
 
-    // 2. Build where clause
+    // 2. Get blocked/blocking users
+    const blocks = await prisma.block.findMany({
+      where: {
+        OR: [
+          { blockerId: currentUserId },
+          { blockedId: currentUserId }
+        ]
+      }
+    });
+    const blockedUserIds = blocks.map(b => b.blockerId === currentUserId ? b.blockedId : b.blockerId);
+
+    // 3. Build where clause
     const where: any = {
       id: {
-        notIn: [currentUserId, ...likedUserIds]
+        notIn: [currentUserId, ...likedUserIds, ...blockedUserIds]
       }
     };
 
@@ -250,9 +261,19 @@ export const getCommunityUsers = async (req: Request, res: Response) => {
   try {
     // @ts-ignore
     const currentUserId = req.userId;
+    const blocks = await prisma.block.findMany({
+      where: {
+        OR: [
+          { blockerId: currentUserId },
+          { blockedId: currentUserId }
+        ]
+      }
+    });
+    const blockedUserIds = blocks.map(b => b.blockerId === currentUserId ? b.blockedId : b.blockerId);
+
     const users = await prisma.user.findMany({
       where: {
-        id: { not: currentUserId }
+        id: { notIn: [currentUserId, ...blockedUserIds] }
       },
       select: {
         id: true,
@@ -271,6 +292,90 @@ export const getCommunityUsers = async (req: Request, res: Response) => {
     res.status(200).json(users);
   } catch (error) {
     console.error('Get community users error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const blockUser = async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore
+    const blockerId = req.userId;
+    const { userId } = req.body;
+
+    if (!userId || blockerId === userId) {
+      return res.status(400).json({ message: 'Invalid user to block' });
+    }
+
+    await prisma.block.create({
+      data: {
+        blockerId,
+        blockedId: userId
+      }
+    });
+
+    res.status(200).json({ message: 'User blocked successfully' });
+  } catch (error) {
+    console.error('Block user error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const reportUser = async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore
+    const reporterId = req.userId;
+    const { userId, reason, details } = req.body;
+
+    if (!userId || reporterId === userId || !reason) {
+      return res.status(400).json({ message: 'Invalid report data' });
+    }
+
+    await prisma.report.create({
+      data: {
+        reporterId,
+        reportedId: userId,
+        reason,
+        details
+      }
+    });
+
+    res.status(200).json({ message: 'User reported successfully' });
+  } catch (error) {
+    console.error('Report user error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getBlockedUsers = async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore
+    const blockerId = req.userId;
+    const blocks = await prisma.block.findMany({
+      where: { blockerId },
+      include: {
+        blocked: {
+          select: { id: true, name: true, avatar: true, bio: true }
+        }
+      }
+    });
+    res.status(200).json(blocks.map(b => b.blocked));
+  } catch (error) {
+    console.error('Get blocked users error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const unblockUser = async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore
+    const blockerId = req.userId;
+    const { userId } = req.body;
+    await prisma.block.deleteMany({
+      where: { blockerId, blockedId: userId }
+    });
+    res.status(200).json({ message: 'User unblocked successfully' });
+  } catch (error) {
+    console.error('Unblock user error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

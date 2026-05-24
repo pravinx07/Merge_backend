@@ -70,6 +70,12 @@ model User {
   // Notifications
   receivedNotifications    Notification[]         @relation("ReceivedNotifications")
   sentNotifications        Notification[]         @relation("SentNotifications")
+
+  // Moderation
+  blocksInitiated   Block[]   @relation("Blocker")
+  blocksReceived    Block[]   @relation("Blocked")
+  reportsSubmitted  Report[]  @relation("Reporter")
+  reportsReceived   Report[]  @relation("Reported")
 }
 
 model Hackathon {
@@ -295,3 +301,27 @@ model Notification {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model Block {
+  id         String   @id @default(uuid())
+  blockerId  String
+  blockedId  String
+  blocker    User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked    User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+}
+
+model Report {
+  id         String   @id @default(uuid())
+  reporterId String
+  reportedId String
+  reporter   User     @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported   User     @relation("Reported", fields: [reportedId], references: [id], onDelete: Cascade)
+  reason     String
+  details    String?
+  status     String   @default("Pending") // Pending, Reviewed, Resolved, Dismissed
+  createdAt  DateTime @default(now())
+}
+
