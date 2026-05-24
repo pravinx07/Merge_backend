@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../Config/prisma';
 
 import bcrypt from 'bcryptjs';
+import { calculateBuilderScore } from '../services/builderScore.service';
 
 export const updateProfile = async (req: Request, res: Response) => {
   try {
@@ -82,12 +83,18 @@ export const updateProfile = async (req: Request, res: Response) => {
 export const getProfile = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { id },
     });
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Refresh builder score
+    const updatedUser = await calculateBuilderScore(id);
+    if (updatedUser) {
+      user = updatedUser;
     }
 
     // @ts-ignore
