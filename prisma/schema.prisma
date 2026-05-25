@@ -72,11 +72,11 @@ model User {
   receivedNotifications    Notification[]         @relation("ReceivedNotifications")
   sentNotifications        Notification[]         @relation("SentNotifications")
 
-  // Moderation
   blocksInitiated   Block[]   @relation("Blocker")
   blocksReceived    Block[]   @relation("Blocked")
   reportsSubmitted  Report[]  @relation("Reporter")
   reportsReceived   Report[]  @relation("Reported")
+  buildWorkspaceUpdates BuildWorkspaceUpdate[]
 }
 
 model Hackathon {
@@ -170,12 +170,13 @@ model Match {
 }
 
 model Chat {
-  id           String    @id @default(uuid())
-  participants User[]    @relation("UserChats")
-  match        Match?
-  messages     Message[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String          @id @default(uuid())
+  participants   User[]          @relation("UserChats")
+  match          Match?
+  messages       Message[]
+  buildWorkspace BuildWorkspace?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
 
 model Message {
@@ -326,3 +327,36 @@ model Report {
   createdAt  DateTime @default(now())
 }
 
+
+model BuildWorkspace {
+  id        String   @id @default(uuid())
+  chatId    String   @unique
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  goal      String   @default("")
+  user1Role String   @default("Frontend")
+  user2Role String   @default("Backend")
+  tasks     BuildWorkspaceTask[]
+  updates   BuildWorkspaceUpdate[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BuildWorkspaceTask {
+  id          String   @id @default(uuid())
+  workspaceId String
+  workspace   BuildWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  text        String
+  status      String   @default("todo")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model BuildWorkspaceUpdate {
+  id          String         @id @default(uuid())
+  workspaceId String
+  workspace   BuildWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content     String
+  createdAt   DateTime       @default(now())
+}
