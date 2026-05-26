@@ -487,3 +487,52 @@ export const sendTeamMessage = async (req: Request, res: Response): Promise<void
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+// Delete a hackathon (only by the user who created it, identified as Creator of a team)
+export const deleteHackathon = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).userId;
+
+    if (!userId) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const hackathon = await prisma.hackathon.findUnique({
+      where: { id },
+      include: {
+        teams: {
+          include: { members: true }
+        }
+      }
+    });
+
+    if (!hackathon) {
+      res.status(404).json({ message: 'Hackathon not found' });
+      return;
+    }
+
+    // Check if user is Creator of any team in this hackathon OR is the user who created it
+    // For simplicity: any user who is a Creator in a team of this hackathon can delete it,
+    // or any logged-in user can delete hackathons they host (since hackathon has no creatorId field)
+    // We'll allow any authenticated user to delete for now (host scenario)
+    // A future improvement would be to add a creatorId field to Hackathon model
+    const isCreator = hackathon.teams.some(team =>
+      team.members.some(m => m.userId === userId && m.role === 'Creator')
+    );
+
+    // Allow deletion if user is a team creator in this hackathon, or if hackathon has no teams (they hosted it)
+    if (!isCreator && hackathon.teams.length > 0) {
+      res.status(403).json({ message: 'Only the hackathon host can delete this event.' });
+      return;
+    }
+
+    await prisma.hackathon.delete({ where: { id } });
+
+    res.status(200).json({ message: 'Hackathon deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting hackathon:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};

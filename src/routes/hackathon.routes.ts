@@ -3,6 +3,7 @@ import {
   getHackathons,
   getHackathonDetails,
   createHackathon,
+  deleteHackathon,
   createTeam,
   applyToTeam,
   handleJoinRequest,
@@ -19,6 +20,7 @@ router.post('/', authenticate, createHackathon);
 
 // Hackathon details (with recommended teams)
 router.get('/:id', authenticate, getHackathonDetails);
+router.delete('/:id', authenticate, deleteHackathon);
 
 // Create hackathon team
 router.post('/:id/teams', authenticate, createTeam);
