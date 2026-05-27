@@ -261,6 +261,7 @@ model Post {
   authorId  String
   author    User       @relation("UserPosts", fields: [authorId], references: [id])
   content   String
+  imageUrl  String?
   postType  String     @default("Update") // Update, Collaboration, Achievement, GitHub, Auto
   likes     PostLike[]
   comments  Comment[]

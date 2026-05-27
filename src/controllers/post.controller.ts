@@ -4,7 +4,7 @@ import { cacheService } from '../services/cacheService';
 
 export const createPost = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { content, postType } = req.body;
+    const { content, postType, imageUrl } = req.body;
     const authorId = (req as any).userId;
 
     if (!authorId) {
@@ -21,6 +21,7 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       data: {
         content,
         postType: postType || 'Update',
+        imageUrl,
         authorId,
       },
       include: {
@@ -205,6 +206,37 @@ export const getTrending = async (req: Request, res: Response): Promise<void> =>
     // Fetch trending projects from cache or DB
     let trendingProjects = cacheService.get<any[]>('trending:projects');
     if (!trendingProjects) {
+      const projectCount = await prisma.project.count();
+      if (projectCount === 0 && userId) {
+        await prisma.project.create({
+          data: {
+            title: 'Antigravity UI',
+            description: 'A beautiful, gesture-driven Component library for React and Tailwind CSS.',
+            techStack: ['React', 'TailwindCSS', 'Framer Motion'],
+            status: 'MVP',
+            ownerId: userId
+          }
+        });
+        await prisma.project.create({
+          data: {
+            title: 'Merge: Connect Developers',
+            description: 'A matching platform for hackers to find team members and collaborate.',
+            techStack: ['React', 'Node.js', 'Express', 'Socket.io'],
+            status: 'Building',
+            ownerId: userId
+          }
+        });
+        await prisma.project.create({
+          data: {
+            title: 'OpenSponsor',
+            description: 'Decentralized micro-sponsorships for open source creators.',
+            techStack: ['Next.js', 'Solidity', 'Ethers.js'],
+            status: 'Launched',
+            ownerId: userId
+          }
+        });
+      }
+
       trendingProjects = await prisma.project.findMany({
         take: 3,
         where: {
@@ -233,5 +265,44 @@ export const getTrending = async (req: Request, res: Response): Promise<void> =>
   } catch (error) {
     console.error('Error fetching trending:', error);
     res.status(500).json({ message: 'Error fetching trending' });
+  }
+};
+
+// Delete post
+export const deletePost = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).userId;
+
+    if (!userId) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const post = await prisma.post.findUnique({
+      where: { id }
+    });
+
+    if (!post) {
+      res.status(404).json({ message: 'Post not found' });
+      return;
+    }
+
+    if (post.authorId !== userId) {
+      res.status(403).json({ message: 'You are not authorized to delete this post' });
+      return;
+    }
+
+    // Delete likes, comments, and post in transaction
+    await prisma.$transaction([
+      prisma.postLike.deleteMany({ where: { postId: id } }),
+      prisma.comment.deleteMany({ where: { postId: id } }),
+      prisma.post.delete({ where: { id } })
+    ]);
+
+    res.status(200).json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting post:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
