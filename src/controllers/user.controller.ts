@@ -161,7 +161,158 @@ export const deleteAccount = async (req: Request, res: Response) => {
   try {
     // @ts-ignore
     const userId = req.userId;
-    await prisma.user.delete({ where: { id: userId } });
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // 1. Fetch user's chats
+    const userChats = await prisma.chat.findMany({
+      where: {
+        participants: {
+          some: { id: userId }
+        }
+      }
+    });
+    const chatIds = userChats.map(c => c.id);
+
+    // 2. Fetch user's projects
+    const userProjects = await prisma.project.findMany({
+      where: { ownerId: userId }
+    });
+    const projectIds = userProjects.map(p => p.id);
+
+    // Delete in sequence to satisfy foreign key constraints:
+
+    // 3. Messages & Workspaces inside chats
+    await prisma.message.deleteMany({
+      where: { chatId: { in: chatIds } }
+    });
+    await prisma.buildWorkspaceTask.deleteMany({
+      where: { workspace: { chatId: { in: chatIds } } }
+    });
+    await prisma.buildWorkspaceUpdate.deleteMany({
+      where: { workspace: { chatId: { in: chatIds } } }
+    });
+    await prisma.buildWorkspace.deleteMany({
+      where: { chatId: { in: chatIds } }
+    });
+
+    // 4. Matches & Skips & Likes
+    await prisma.match.deleteMany({
+      where: {
+        OR: [
+          { chatId: { in: chatIds } },
+          { user1Id: userId },
+          { user2Id: userId }
+        ]
+      }
+    });
+    await prisma.like.deleteMany({
+      where: {
+        OR: [
+          { senderId: userId },
+          { receiverId: userId }
+        ]
+      }
+    });
+    await prisma.skip.deleteMany({
+      where: {
+        OR: [
+          { senderId: userId },
+          { receiverId: userId }
+        ]
+      }
+    });
+
+    // 5. Chats
+    await prisma.chat.deleteMany({
+      where: { id: { in: chatIds } }
+    });
+
+    // 6. Project dependencies
+    await prisma.projectMessage.deleteMany({
+      where: {
+        OR: [
+          { projectId: { in: projectIds } },
+          { senderId: userId }
+        ]
+      }
+    });
+    await prisma.projectJoinRequest.deleteMany({
+      where: {
+        OR: [
+          { projectId: { in: projectIds } },
+          { applicantId: userId }
+        ]
+      }
+    });
+    await prisma.projectMember.deleteMany({
+      where: {
+        OR: [
+          { projectId: { in: projectIds } },
+          { userId }
+        ]
+      }
+    });
+    await prisma.project.deleteMany({
+      where: { ownerId: userId }
+    });
+
+    // 7. Post dependencies
+    await prisma.postLike.deleteMany({
+      where: {
+        OR: [
+          { userId },
+          { post: { authorId: userId } }
+        ]
+      }
+    });
+    await prisma.comment.deleteMany({
+      where: {
+        OR: [
+          { authorId: userId },
+          { post: { authorId: userId } }
+        ]
+      }
+    });
+    await prisma.post.deleteMany({
+      where: { authorId: userId }
+    });
+
+    // 8. Notifications
+    await prisma.notification.deleteMany({
+      where: {
+        OR: [
+          { recipientId: userId },
+          { senderId: userId }
+        ]
+      }
+    });
+
+    // 9. Blocks and Reports
+    await prisma.block.deleteMany({
+      where: {
+        OR: [
+          { blockerId: userId },
+          { blockedId: userId }
+        ]
+      }
+    });
+    await prisma.report.deleteMany({
+      where: {
+        OR: [
+          { reporterId: userId },
+          { reportedId: userId }
+        ]
+      }
+    });
+
+    // 10. Finally, delete the User
+    await prisma.user.delete({
+      where: { id: userId }
+    });
+
     res.clearCookie('token');
     res.status(200).json({ message: 'Account deleted successfully' });
   } catch (error) {
