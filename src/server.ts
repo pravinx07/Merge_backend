@@ -30,7 +30,10 @@ app.set('io', io);
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    'https://merge-frontend-six.vercel.app'
+  ],
   credentials: true
 }));
 app.use(express.json());
