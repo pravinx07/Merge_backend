@@ -81,11 +81,27 @@ export const updateProfile = async (req: Request, res: Response) => {
   }
 };
 
+export const uploadImage = async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file provided' });
+    }
+    const imageUrl = (req.file as any).path;
+    res.status(200).json({ imageUrl });
+  } catch (error) {
+    console.error('Image upload error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 export const getProfile = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     let user = await prisma.user.findUnique({
       where: { id },
+      include: {
+        ownedProjects: true
+      }
     });
 
     if (!user) {
@@ -115,13 +131,34 @@ export const getProfile = async (req: Request, res: Response) => {
     if (!isOwner) {
       user = await prisma.user.update({
         where: { id },
-        data: { profileViews: { increment: 1 } }
+        data: { profileViews: { increment: 1 } },
+        include: { ownedProjects: true }
       });
+    }
+
+    let compatibilityScore = 0;
+    if (token && !isOwner) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey123') as any;
+        const currentUser = await prisma.user.findUnique({ where: { id: decoded.userId } });
+        if (currentUser && user) {
+          const sharedSkills = user.skills.filter(s => currentUser.skills.includes(s));
+          const totalSkills = Array.from(new Set([...user.skills, ...currentUser.skills])).length;
+          if (totalSkills > 0) compatibilityScore += (sharedSkills.length / totalSkills) * 40;
+
+          const sharedInterests = user.interests.filter(i => currentUser.interests.includes(i));
+          const totalInterests = Array.from(new Set([...user.interests, ...currentUser.interests])).length;
+          if (totalInterests > 0) compatibilityScore += (sharedInterests.length / totalInterests) * 30;
+
+          if (user.intent && currentUser.intent && user.intent === currentUser.intent) compatibilityScore += 20;
+          if (user.location && currentUser.location && user.location.toLowerCase() === currentUser.location.toLowerCase()) compatibilityScore += 10;
+        }
+      } catch (e) {}
     }
 
     // @ts-ignore
     delete user.password;
-    res.status(200).json(user);
+    res.status(200).json({ ...user, compatibilityScore: Math.round(compatibilityScore) || 0 });
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({ message: 'Internal server error' });
