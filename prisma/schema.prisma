@@ -78,6 +78,24 @@ model User {
   reportsSubmitted  Report[]  @relation("Reporter")
   reportsReceived   Report[]  @relation("Reported")
   buildWorkspaceUpdates BuildWorkspaceUpdate[]
+
+  // Profile Visitors
+  profileVisitsReceived ProfileVisit[] @relation("ProfileOwner")
+  profileVisitsMade     ProfileVisit[] @relation("ProfileVisitor")
+}
+
+// Profile Visitors - tracks who viewed whose profile
+model ProfileVisit {
+  id             String   @id @default(uuid())
+  profileOwnerId String
+  profileOwner   User     @relation("ProfileOwner", fields: [profileOwnerId], references: [id], onDelete: Cascade)
+  visitorId      String
+  visitor        User     @relation("ProfileVisitor", fields: [visitorId], references: [id], onDelete: Cascade)
+  visitedAt      DateTime @default(now())
+
+  @@unique([profileOwnerId, visitorId, visitedAt])
+  @@index([profileOwnerId])
+  @@index([visitorId])
 }
 
 model Hackathon {

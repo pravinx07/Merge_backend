@@ -134,6 +134,47 @@ export const getProfile = async (req: Request, res: Response) => {
         data: { profileViews: { increment: 1 } },
         include: { ownedProjects: true }
       });
+
+      // Record profile visit (24h rule - only once per day per visitor)
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey123') as any;
+          const visitorId = decoded.userId;
+          
+          // Check if visitor is blocked by profile owner
+          const isBlocked = await prisma.block.findFirst({
+            where: {
+              OR: [
+                { blockerId: id, blockedId: visitorId },
+                { blockerId: visitorId, blockedId: id }
+              ]
+            }
+          });
+
+          if (!isBlocked) {
+            // Check for existing visit in last 24 hours
+            const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const existingVisit = await prisma.profileVisit.findFirst({
+              where: {
+                profileOwnerId: id,
+                visitorId: visitorId,
+                visitedAt: { gte: twentyFourHoursAgo }
+              }
+            });
+
+            if (!existingVisit) {
+              await prisma.profileVisit.create({
+                data: {
+                  profileOwnerId: id,
+                  visitorId: visitorId
+                }
+              });
+            }
+          }
+        } catch (e) {
+          // Token verification failed, skip visit recording
+        }
+      }
     }
 
     let compatibilityScore = 0;
@@ -586,6 +627,138 @@ export const unblockUser = async (req: Request, res: Response) => {
     res.status(200).json({ message: 'User unblocked successfully' });
   } catch (error) {
     console.error('Unblock user error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Get profile visitors
+export const getProfileVisitors = async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore
+    const userId = req.userId;
+
+    // Get current user to check plan
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { plan: true }
+    });
+
+    const isPro = currentUser?.plan === 'pro';
+
+    // Get total visitor count
+    const totalVisitors = await prisma.profileVisit.count({
+      where: { profileOwnerId: userId }
+    });
+
+    // Get unique visitors count (last 30 days)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const recentVisitors = await prisma.profileVisit.groupBy({
+      by: ['visitorId'],
+      where: {
+        profileOwnerId: userId,
+        visitedAt: { gte: thirtyDaysAgo }
+      },
+      _max: { visitedAt: true }
+    });
+
+    // If Pro user, get full visitor details
+    if (isPro) {
+      const visitorIds = recentVisitors.map(v => v.visitorId);
+      const visitors = await prisma.user.findMany({
+        where: { id: { in: visitorIds } },
+        select: {
+          id: true,
+          name: true,
+          avatar: true,
+          bio: true,
+          skills: true,
+          experienceLevel: true,
+          location: true
+        }
+      });
+
+      // Merge visit time with user data
+      const visitorsWithTime = visitors.map(visitor => {
+        const visitData = recentVisitors.find(v => v.visitorId === visitor.id);
+        return {
+          ...visitor,
+          visitedAt: visitData?._max?.visitedAt
+        };
+      }).sort((a, b) => {
+        if (!a.visitedAt || !b.visitedAt) return 0;
+        return new Date(b.visitedAt).getTime() - new Date(a.visitedAt).getTime();
+      });
+
+      return res.status(200).json({
+        isPro: true,
+        totalVisitors,
+        uniqueVisitorsCount: recentVisitors.length,
+        visitors: visitorsWithTime
+      });
+    }
+
+    // Free user - return teaser data only (blurred)
+    const visitorIds = recentVisitors.slice(0, 5).map(v => v.visitorId);
+    const teaserVisitors = await prisma.user.findMany({
+      where: { id: { in: visitorIds } },
+      select: {
+        id: true,
+        // Return partial data that will be blurred on frontend
+        name: true,
+        avatar: true,
+        skills: true
+      }
+    });
+
+    // Add visit times
+    const teaserWithTime = teaserVisitors.map(visitor => {
+      const visitData = recentVisitors.find(v => v.visitorId === visitor.id);
+      return {
+        ...visitor,
+        visitedAt: visitData?._max?.visitedAt
+      };
+    });
+
+    res.status(200).json({
+      isPro: false,
+      totalVisitors,
+      uniqueVisitorsCount: recentVisitors.length,
+      visitors: teaserWithTime // Frontend will blur these
+    });
+  } catch (error) {
+    console.error('Get profile visitors error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Get visitor stats for dashboard card
+export const getVisitorStats = async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore
+    const userId = req.userId;
+
+    // Get recent visitor count (last 7 days)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const recentCount = await prisma.profileVisit.groupBy({
+      by: ['visitorId'],
+      where: {
+        profileOwnerId: userId,
+        visitedAt: { gte: sevenDaysAgo }
+      }
+    });
+
+    // Get total unique visitors
+    const totalUnique = await prisma.profileVisit.groupBy({
+      by: ['visitorId'],
+      where: { profileOwnerId: userId }
+    });
+
+    res.status(200).json({
+      recentVisitors: recentCount.length,
+      totalVisitors: totalUnique.length
+    });
+  } catch (error) {
+    console.error('Get visitor stats error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
