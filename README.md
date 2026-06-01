@@ -82,7 +82,9 @@ The REST API endpoints are prefixed with `/api`. Key routes include:
 - `/api/auth` - User authentication and session management
 - `/api/users` - User CRUD operations
 - `/api/matches` - Viewing and managing matched connections
+  - `GET /api/matches/smart` — **🤖 AI Smart Matches (PRO):** Returns top-10 scored recommendations for Pro users (top-3 teaser for free users), powered by the rule-based compatibility engine
 - `/api/swipe` - The core developer discovery mechanism
+  - `GET /api/swipe/recommended` - Fast 6-card recommendation feed
 - `/api/projects` - Project showcases and portfolios
 - `/api/posts` - Community feed
 - `/api/github` - GitHub profile integrations
