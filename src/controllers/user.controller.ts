@@ -459,7 +459,10 @@ export const getDiscoverUsers = async (req: Request, res: Response) => {
       where,
       skip,
       take: limit,
-      orderBy: { createdAt: 'desc' }
+      orderBy: [
+        { isBoosted: 'desc' },
+        { createdAt: 'desc' }
+      ]
     });
 
     const currentUser = await prisma.user.findUnique({ where: { id: currentUserId } });

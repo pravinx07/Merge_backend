@@ -73,12 +73,19 @@ export const getSwipeFeed = async (req: Request, res: Response) => {
           )
         : { score: 0, breakdown: {}, matchReasons: [], algorithmVersion: 'v1-rule-based' as const };
 
+      let finalScore = result.score;
+      const isCurrentlyBoosted = user.isBoosted && user.boostExpiresAt && new Date(user.boostExpiresAt) > new Date();
+      if (isCurrentlyBoosted) {
+        finalScore += 200; // Boosted ranking score
+      }
+
       return {
         ...stripPassword(user),
-        compatibilityScore: result.score,
+        compatibilityScore: finalScore,
         matchReasons:       result.matchReasons,
         compatibilityBreakdown: result.breakdown,
         algorithmVersion:   result.algorithmVersion,
+        isBoosted: isCurrentlyBoosted,
       };
     });
 
@@ -142,12 +149,19 @@ export const getRecommended = async (req: Request, res: Response) => {
           },
         );
 
+        let finalScore = result.score;
+        const isCurrentlyBoosted = user.isBoosted && user.boostExpiresAt && new Date(user.boostExpiresAt) > new Date();
+        if (isCurrentlyBoosted) {
+          finalScore += 200; // Boosted ranking score
+        }
+
         return {
           ...stripPassword(user),
-          compatibilityScore:     result.score,
+          compatibilityScore:     finalScore,
           matchReasons:           result.matchReasons,
           compatibilityBreakdown: result.breakdown,
           algorithmVersion:       result.algorithmVersion,
+          isBoosted:              isCurrentlyBoosted,
         };
       })
       .filter(u => u.compatibilityScore > 0)          // Only meaningful matches

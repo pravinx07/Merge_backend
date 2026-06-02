@@ -42,6 +42,9 @@ model User {
   resetPasswordExpires DateTime?
   githubVerified      Boolean  @default(false)
   githubData          Json?    @default("{}")
+  isBoosted           Boolean  @default(false)
+  boostExpiresAt      DateTime?
+  boostCount          Int      @default(0)
 
   // Relations
   sentLikes     Like[]    @relation("SentLikes")
