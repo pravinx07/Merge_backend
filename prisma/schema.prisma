@@ -45,6 +45,11 @@ model User {
   isBoosted           Boolean  @default(false)
   boostExpiresAt      DateTime?
   boostCount          Int      @default(0)
+  reliabilityScore    Int      @default(0)
+  responseTime        String   @default("2h")
+  projectCompletionRate String @default("0/0")
+  builderRating       Float    @default(0.0)
+  activityLevel       String   @default("Active")
 
   // Relations
   sentLikes     Like[]    @relation("SentLikes")
