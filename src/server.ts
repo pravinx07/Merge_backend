@@ -14,6 +14,7 @@ import githubRoutes from './routes/github.routes';
 import hackathonRoutes from './routes/hackathon.routes';
 import notificationRoutes from './routes/notification.routes';
 import workspaceRoutes from './routes/workspace.routes';
+import boostRoutes from './routes/boost.routes';
 import logger from './Config/logger';
 import { httpLoggerMiddleware, errorHandlerMiddleware } from './middlewares/logger.middleware';
 import prisma from './Config/prisma';
@@ -53,6 +54,7 @@ app.use('/api/github', githubRoutes);
 app.use('/api/hackathons', hackathonRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/workspace', workspaceRoutes);
+app.use('/api/boost', boostRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
