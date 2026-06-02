@@ -4,7 +4,7 @@ import logger from '../Config/logger';
 
 export const activateBoost = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId;
     if (!userId) {
       res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
@@ -56,7 +56,7 @@ export const activateBoost = async (req: Request, res: Response): Promise<void> 
 
 export const getBoostStatus = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId;
     if (!userId) {
       res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
