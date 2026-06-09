@@ -31,9 +31,10 @@ const io = initSocket(server);
 app.set('io', io);
 
 // Middleware
+const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
 app.use(cors({
   origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
+    frontendUrl,
     'https://merge-frontend-six.vercel.app'
   ],
   credentials: true

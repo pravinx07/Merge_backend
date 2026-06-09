@@ -214,13 +214,13 @@ export const githubCallback = async (req: Request, res: Response) => {
     });
 
     // 6. Redirect to frontend (dashboard or onboarding if bio/skills missing)
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
     
     // If it's a new user or missing bio/intent, send to onboarding
     if (!user.bio || !user.intent) {
-      res.redirect(`${frontendUrl}/onboarding`);
+      res.redirect(`${frontendUrl}/onboarding?token=${token}`);
     } else {
-      res.redirect(`${frontendUrl}/dashboard`);
+      res.redirect(`${frontendUrl}/dashboard?token=${token}`);
     }
   } catch (error) {
     console.error('GitHub OAuth error:', error);
