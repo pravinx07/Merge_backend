@@ -3,9 +3,13 @@ import http from 'http';
 import prisma from './Config/prisma';
 
 export const initSocket = (server: http.Server) => {
+  const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
   const io = new Server(server, {
     cors: {
-      origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+      origin: [
+        frontendUrl,
+        'https://merge-frontend-six.vercel.app'
+      ],
       methods: ['GET', 'POST'],
       credentials: true
     }
