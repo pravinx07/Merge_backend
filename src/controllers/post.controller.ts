@@ -4,7 +4,7 @@ import { cacheService } from '../services/cacheService';
 
 export const createPost = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { content, postType, imageUrl } = req.body;
+    const { content, postType, imageUrl, codeSnippet, language, pollOptions } = req.body;
     const authorId = (req as any).userId;
 
     if (!authorId) {
@@ -22,11 +22,19 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
         content,
         postType: postType || 'Update',
         imageUrl,
+        codeSnippet,
+        language,
         authorId,
+        pollOptions: pollOptions && Array.isArray(pollOptions) && pollOptions.length > 0 ? {
+          create: pollOptions.map((opt: string) => ({ text: opt }))
+        } : undefined
       },
       include: {
         author: {
           select: { id: true, name: true, avatar: true, bio: true }
+        },
+        pollOptions: {
+          include: { _count: { select: { votes: true } } }
         },
         _count: {
           select: { likes: true, comments: true }
@@ -60,6 +68,12 @@ export const getFeed = async (req: Request, res: Response): Promise<void> => {
           where: { userId },
           select: { userId: true }
         },
+        pollOptions: {
+          include: { 
+            _count: { select: { votes: true } },
+            votes: { where: { userId }, select: { id: true } }
+          }
+        },
         _count: {
           select: { likes: true, comments: true }
         }
@@ -69,7 +83,13 @@ export const getFeed = async (req: Request, res: Response): Promise<void> => {
     const formattedPosts = posts.map(post => ({
       ...post,
       hasLiked: post.likes.length > 0,
-      likes: undefined
+      likes: undefined,
+      pollOptions: post.pollOptions.map((opt: any) => ({
+        id: opt.id,
+        text: opt.text,
+        votes: opt._count.votes,
+        hasVoted: opt.votes.length > 0
+      }))
     }));
 
     res.status(200).json(formattedPosts);
@@ -305,5 +325,46 @@ export const deletePost = async (req: Request, res: Response): Promise<void> => 
   } catch (error) {
     console.error('Error deleting post:', error);
     res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const votePoll = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id, optionId } = req.params; // id is postId
+    const userId = (req as any).userId;
+
+    if (!userId) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    // Check if already voted on this poll (any option)
+    const existingVote = await prisma.pollVote.findFirst({
+      where: {
+        userId,
+        pollOption: { postId: id }
+      }
+    });
+
+    if (existingVote) {
+      if (existingVote.pollOptionId === optionId) {
+        res.status(400).json({ message: 'Already voted for this option' });
+        return;
+      }
+      // Switch vote
+      await prisma.pollVote.delete({ where: { id: existingVote.id } });
+    }
+
+    await prisma.pollVote.create({
+      data: {
+        userId,
+        pollOptionId: optionId
+      }
+    });
+
+    res.status(200).json({ message: 'Vote registered' });
+  } catch (error) {
+    console.error('Error voting on poll:', error);
+    res.status(500).json({ message: 'Error voting on poll' });
   }
 };

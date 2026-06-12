@@ -81,7 +81,17 @@ function scoreProjects(
 
 function scoreIntent(currentIntent: string | null, targetIntent: string | null): number {
   if (!currentIntent || !targetIntent) return 0;
-  return currentIntent.toLowerCase() === targetIntent.toLowerCase() ? 1 : 0;
+  
+  const c = currentIntent.toUpperCase();
+  const t = targetIntent.toUpperCase();
+
+  if (c === t) return 1;
+  
+  if ((c === 'MENTORING' && t === 'LEARNING') || (c === 'LEARNING' && t === 'MENTORING')) {
+    return 1.5; // Mentorship match boost
+  }
+
+  return 0;
 }
 
 function scoreGitHub(currentGhData: any, targetGhData: any): {
@@ -209,11 +219,11 @@ export function calculateCompatibility(
     });
   }
 
-  if (rawIntent === 1 && currentUser.intent) {
-    const intent = currentUser.intent;
+  if ((rawIntent === 1 || rawIntent === 1.5) && currentUser.intent) {
+    const isMentorship = rawIntent === 1.5;
     reasons.push({
-      icon: '🎯',
-      label: `Same goal: ${intent}`,
+      icon: isMentorship ? '🎓' : '🎯',
+      label: isMentorship ? 'Perfect Mentorship Match' : `Same goal: ${currentUser.intent}`,
       category: 'intent',
     });
   }
