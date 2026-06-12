@@ -71,6 +71,7 @@ model User {
   posts               Post[]               @relation("UserPosts")
   postLikes           PostLike[]           @relation("UserPostLikes")
   comments            Comment[]            @relation("UserComments")
+  pollVotes           PollVote[]
 
   // Hackathon Relations
   hackathonTeamMemberships HackathonTeamMember[] @relation("HackathonTeamMemberships")
@@ -284,16 +285,38 @@ model ProjectMessage {
 }
 
 model Post {
+  id          String       @id @default(uuid())
+  authorId    String
+  author      User         @relation("UserPosts", fields: [authorId], references: [id], onDelete: Cascade)
+  content     String
+  imageUrl    String?
+  postType    String       @default("Update") // Update, Collaboration, Achievement, GitHub, Auto, CODE_REVIEW, POLL
+  codeSnippet String?      @db.Text
+  language    String?
+  pollOptions PollOption[]
+  likes       PostLike[]
+  comments    Comment[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model PollOption {
   id        String     @id @default(uuid())
-  authorId  String
-  author    User       @relation("UserPosts", fields: [authorId], references: [id])
-  content   String
-  imageUrl  String?
-  postType  String     @default("Update") // Update, Collaboration, Achievement, GitHub, Auto
-  likes     PostLike[]
-  comments  Comment[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  postId    String
+  post      Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  text      String
+  votes     PollVote[]
+}
+
+model PollVote {
+  id           String     @id @default(uuid())
+  pollOptionId String
+  pollOption   PollOption @relation(fields: [pollOptionId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([pollOptionId, userId])
 }
 
 model PostLike {

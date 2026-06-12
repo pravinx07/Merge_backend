@@ -8,7 +8,8 @@ import {
   addComment,
   getComments,
   getTrending,
-  deletePost
+  deletePost,
+  votePoll
 } from '../controllers/post.controller';
 
 const router = Router();
@@ -35,6 +36,7 @@ router.post('/upload', authenticate, upload.single('image'), (req: any, res: any
 router.post('/', authenticate, createPost);
 router.post('/:id/like', authenticate, likePost);
 router.delete('/:id', authenticate, deletePost);
+router.post('/:id/poll/:optionId', authenticate, votePoll);
 
 // Comments
 router.get('/:id/comments', authenticate, getComments);
