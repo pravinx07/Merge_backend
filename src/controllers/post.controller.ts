@@ -185,14 +185,15 @@ export const getTrending = async (req: Request, res: Response): Promise<void> =>
       trendingDevelopers = await prisma.user.findMany({
         take: 10, // Fetch slightly more to filter out current user dynamically
         orderBy: {
-          createdAt: 'desc'
+          builderScore: 'desc'
         },
         select: {
           id: true,
           name: true,
           avatar: true,
           bio: true,
-          skills: true
+          skills: true,
+          builderScore: true
         }
       });
       cacheService.set('trending:developers', trendingDevelopers, 600); // 10 minutes cache
