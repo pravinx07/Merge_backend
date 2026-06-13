@@ -16,6 +16,21 @@ export const getWorkspace = async (req: Request, res: Response) => {
     });
 
     if (!workspace) {
+      // Pro Gate: Check if at least one participant is a Pro user before creating
+      const chat = await prisma.chat.findUnique({
+        where: { id: chatId },
+        include: { participants: { select: { plan: true } } }
+      });
+
+      if (!chat) {
+        return res.status(404).json({ error: 'Chat not found' });
+      }
+
+      const hasProUser = chat.participants.some((user: any) => user.plan === 'pro');
+      if (!hasProUser) {
+        return res.status(403).json({ error: 'Pro plan required to create a Build Workspace' });
+      }
+
       workspace = await prisma.buildWorkspace.create({
         data: {
           chatId,
@@ -137,6 +152,23 @@ export const createWorkspaceUpdate = async (req: Request, res: Response) => {
     res.json(update);
   } catch (error) {
     console.error('Error in createWorkspaceUpdate:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const saveWorkspaceCode = async (req: Request, res: Response) => {
+  try {
+    const { chatId } = req.params;
+    const { code, language } = req.body;
+    
+    const workspace = await prisma.buildWorkspace.update({
+      where: { chatId },
+      data: { code, language }
+    });
+
+    res.json(workspace);
+  } catch (error) {
+    console.error('Error in saveWorkspaceCode:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
