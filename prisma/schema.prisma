@@ -386,6 +386,8 @@ model BuildWorkspace {
   goal      String   @default("")
   user1Role String   @default("Frontend")
   user2Role String   @default("Backend")
+  code      String   @default("") @db.Text
+  language  String   @default("typescript")
   tasks     BuildWorkspaceTask[]
   updates   BuildWorkspaceUpdate[]
   createdAt DateTime @default(now())

@@ -70,6 +70,12 @@ export const initSocket = (server: http.Server) => {
       }
     });
 
+    // Workspace Code Sync
+    socket.on('workspace_code_update', (data) => {
+      const { roomId, code, language } = data;
+      socket.in(roomId).emit('workspace_code_updated', { code, language });
+    });
+
     socket.on('disconnect', () => {
       console.log('User disconnected:', socket.id);
       // Remove from online users
