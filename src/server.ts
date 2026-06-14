@@ -16,9 +16,11 @@ import notificationRoutes from './routes/notification.routes';
 import workspaceRoutes from './routes/workspace.routes';
 import boostRoutes from './routes/boost.routes';
 import profileRoutes from './routes/profile.routes';
+import bountyRoutes from './routes/bounty.routes';
 import logger from './Config/logger';
 import { httpLoggerMiddleware, errorHandlerMiddleware } from './middlewares/logger.middleware';
 import prisma from './Config/prisma';
+import { initCronJobs } from './cron';
 
 dotenv.config();
 
@@ -29,6 +31,9 @@ const PORT = process.env.PORT || 5000;
 // Initialize Socket.io
 const io = initSocket(server);
 app.set('io', io);
+
+// Initialize Cron Jobs
+initCronJobs();
 
 // Middleware
 const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
@@ -58,6 +63,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/workspace', workspaceRoutes);
 app.use('/api/boost', boostRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/bounties', bountyRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
