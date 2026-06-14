@@ -7,7 +7,8 @@ import {
   createTask, 
   updateTaskStatus,
   createWorkspaceUpdate,
-  saveWorkspaceCode
+  saveWorkspaceCode,
+  askMergeAIEndpoint
 } from '../controllers/workspace.controller';
 
 const router = Router();
@@ -21,5 +22,6 @@ router.put('/:chatId/code', saveWorkspaceCode);
 router.post('/:chatId/tasks', createTask);
 router.put('/tasks/:taskId/status', updateTaskStatus);
 router.post('/:chatId/updates', createWorkspaceUpdate);
+router.post('/:chatId/ai', askMergeAIEndpoint);
 
 export default router;

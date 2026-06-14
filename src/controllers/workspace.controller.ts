@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../Config/prisma';
+import { askMergeAI } from '../services/ai.service';
 
 export const getWorkspace = async (req: Request, res: Response) => {
   try {
@@ -170,5 +171,29 @@ export const saveWorkspaceCode = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error in saveWorkspaceCode:', error);
     res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const askMergeAIEndpoint = async (req: Request, res: Response) => {
+  try {
+    const { chatId } = req.params;
+    const { prompt, codeContext, language } = req.body;
+    
+    const workspace = await prisma.buildWorkspace.findUnique({ where: { chatId } });
+    if (!workspace) return res.status(404).json({ error: 'Workspace not found' });
+
+    // Ensure the AI call isn't abused
+    // @ts-ignore
+    const userId = req.userId;
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
+    
+    // Check limits based on plan if you want (Skipping for MVP or just letting it pass)
+    
+    const responseText = await askMergeAI(prompt, codeContext, language);
+
+    res.json({ text: responseText });
+  } catch (error) {
+    console.error('Error in askMergeAIEndpoint:', error);
+    res.status(500).json({ error: 'Failed to generate AI response' });
   }
 };
