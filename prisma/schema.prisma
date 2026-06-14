@@ -91,6 +91,10 @@ model User {
   // Profile Visitors
   profileVisitsReceived ProfileVisit[] @relation("ProfileOwner")
   profileVisitsMade     ProfileVisit[] @relation("ProfileVisitor")
+
+  // Bounties
+  bountiesOwned    Bounty[] @relation("BountyOwner")
+  bountiesAssigned Bounty[] @relation("BountyAssignee")
 }
 
 // Profile Visitors - tracks who viewed whose profile
@@ -412,4 +416,19 @@ model BuildWorkspaceUpdate {
   author      User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
   content     String
   createdAt   DateTime       @default(now())
+}
+
+model Bounty {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  amount      Float
+  status      String   @default("Open") // Open, In Progress, Completed, Cancelled
+  ownerId     String
+  owner       User     @relation("BountyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  assigneeId  String?
+  assignee    User?    @relation("BountyAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  skills      String[] @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
