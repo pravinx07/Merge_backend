@@ -25,6 +25,12 @@ model User {
   intent        String?
   location      String?
   website       String?
+  
+  // Subscription & Payments
+  razorpayCustomerId     String? @unique
+  razorpaySubscriptionId String?
+  subscriptionStatus   String?
+  currentPeriodEnd     DateTime?
   twitter       String?
   linkedin      String?
   githubUrl     String?

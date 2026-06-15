@@ -18,6 +18,7 @@ import boostRoutes from './routes/boost.routes';
 import profileRoutes from './routes/profile.routes';
 import bountyRoutes from './routes/bounty.routes';
 import assessmentRoutes from './routes/assessment.routes';
+import paymentRoutes from './routes/payment.routes';
 import logger from './Config/logger';
 import { httpLoggerMiddleware, errorHandlerMiddleware } from './middlewares/logger.middleware';
 import prisma from './Config/prisma';
@@ -66,6 +67,7 @@ app.use('/api/boost', boostRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/bounties', bountyRoutes);
 app.use('/api/assessments', assessmentRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
