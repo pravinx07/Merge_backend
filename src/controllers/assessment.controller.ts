@@ -6,7 +6,11 @@ import logger from '../Config/logger';
 
 dotenv.config();
 
-const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY });
+const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+if (!apiKey) {
+  logger.warn('Missing GOOGLE_API_KEY or GEMINI_API_KEY environment variable. Assessments will fail.');
+}
+const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy-key' });
 
 const ASSESSMENTS = [
   {
@@ -52,6 +56,10 @@ export const submitAssessment = async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
+    if (!process.env.GOOGLE_API_KEY && !process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: 'AI Verification service is not configured' });
+    }
+
     if (user.verifiedSkills.includes(assessment.skill)) {
       return res.status(400).json({ error: 'Skill already verified' });
     }
@@ -69,10 +77,16 @@ export const submitAssessment = async (req: Request, res: Response) => {
     {"passed": true/false, "feedback": "Your feedback here"}
     Do not wrap it in markdown block quotes, just raw JSON.`;
 
-    const aiResponse = await ai.models.generateContent({
+    const aiPromise = ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
     });
+    
+    const timeoutPromise = new Promise<any>((_, reject) => 
+      setTimeout(() => reject(new Error('AI Request Timeout')), 15000)
+    );
+
+    const aiResponse = await Promise.race([aiPromise, timeoutPromise]);
 
     const responseText = aiResponse.text || '{}';
     // Clean up potential markdown formatting if the model disobeys
@@ -80,15 +94,28 @@ export const submitAssessment = async (req: Request, res: Response) => {
     
     let evaluation = { passed: false, feedback: 'Failed to parse AI response' };
     try {
-      evaluation = JSON.parse(cleanJson);
+      const parsed = JSON.parse(cleanJson);
+      evaluation.feedback = parsed.feedback || '';
+      
+      // Validate and normalize boolean
+      if (typeof parsed.passed === 'string') {
+        evaluation.passed = parsed.passed.toLowerCase() === 'true';
+      } else {
+        evaluation.passed = Boolean(parsed.passed);
+      }
     } catch (e) {
       logger.error('Failed to parse AI evaluation JSON:', cleanJson);
     }
 
-    if (evaluation.passed) {
-      // Add to verified skills
-      await prisma.user.update({
-        where: { id: userId },
+    if (evaluation.passed === true) {
+      // Add to verified skills atomically using updateMany to prevent race conditions
+      await prisma.user.updateMany({
+        where: { 
+          id: userId,
+          NOT: {
+            verifiedSkills: { has: assessment.skill }
+          }
+        },
         data: {
           verifiedSkills: { push: assessment.skill },
           builderScore: { increment: 50 } // Reward for passing
