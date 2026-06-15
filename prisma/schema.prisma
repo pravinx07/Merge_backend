@@ -21,6 +21,7 @@ model User {
   skills        String[] @default([])
   experienceLevel String?
   interests     String[] @default([])
+  verifiedSkills String[] @default([])
   intent        String?
   location      String?
   website       String?

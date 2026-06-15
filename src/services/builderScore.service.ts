@@ -59,6 +59,14 @@ export const calculateBuilderScore = async (userId: string) => {
       badges.add('Great Collaborator');
     }
     
+    // 5. Assessments (Verified Skills)
+    if (user.verifiedSkills && user.verifiedSkills.length > 0) {
+      score += user.verifiedSkills.length * 50; // +50 per verified skill
+      if (user.verifiedSkills.length >= 3) {
+        badges.add('Certified Expert');
+      }
+    }
+    
     // Determine Level
     let level = 'Beginner Builder';
     if (score >= 1000) level = 'Legendary Builder';
