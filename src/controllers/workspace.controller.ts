@@ -187,7 +187,9 @@ export const askMergeAIEndpoint = async (req: Request, res: Response) => {
     const userId = req.userId;
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
     
-    // Check limits based on plan if you want (Skipping for MVP or just letting it pass)
+    if (user?.plan !== 'pro') {
+      return res.status(403).json({ error: 'Merge Pro required for AI assistant' });
+    }
     
     const responseText = await askMergeAI(prompt, codeContext, language);
 

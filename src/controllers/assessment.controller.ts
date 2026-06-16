@@ -40,18 +40,59 @@ const ASSESSMENTS = [
 ];
 
 export const getAssessments = (req: Request, res: Response) => {
-  res.json(ASSESSMENTS);
+  res.json([]);
+};
+
+export const generateAssessment = async (req: Request, res: Response) => {
+  try {
+    const { skill } = req.body;
+    if (!skill) return res.status(400).json({ error: 'Skill is required' });
+
+    const prompt = `You are a technical interviewer. Generate a short, practical coding challenge to test a developer's proficiency in "${skill}".
+    The challenge should take about 15 minutes to solve.
+    Respond with ONLY a JSON object in this exact format:
+    {"title": "Short Title", "description": "Detailed task description", "language": "javascript", "timeLimitMinutes": 15}
+    Do not wrap it in markdown block quotes.`;
+
+    const aiPromise = ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: { responseMimeType: "application/json" }
+    });
+
+    const timeoutPromise = new Promise<any>((_, reject) => 
+      setTimeout(() => reject(new Error('AI Request Timeout')), 15000)
+    );
+
+    const aiResponse = await Promise.race([aiPromise, timeoutPromise]);
+    const cleanJson = (aiResponse.text || '{}').replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    const parsed = JSON.parse(cleanJson);
+    
+    res.json({
+      id: Date.now().toString(),
+      skill,
+      title: parsed.title || `${skill} Challenge`,
+      description: parsed.description || `Write a program using ${skill}.`,
+      language: parsed.language || 'javascript',
+      timeLimitMinutes: parsed.timeLimitMinutes || 15
+    });
+
+  } catch (error) {
+    logger.error('Error generating assessment:', error);
+    res.status(500).json({ error: 'Failed to generate assessment' });
+  }
 };
 
 export const submitAssessment = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const { code } = req.body;
+    const { skill, description, language, code } = req.body;
     // @ts-ignore
     const userId = req.userId;
 
-    const assessment = ASSESSMENTS.find(a => a.id === id);
-    if (!assessment) return res.status(404).json({ error: 'Assessment not found' });
+    if (!skill || !description || !language || !code) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -60,15 +101,15 @@ export const submitAssessment = async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'AI Verification service is not configured' });
     }
 
-    if (user.verifiedSkills.includes(assessment.skill)) {
+    if (user.verifiedSkills.includes(skill)) {
       return res.status(400).json({ error: 'Skill already verified' });
     }
 
     // Use Gemini to evaluate the code
     const prompt = `You are an automated coding assessment grader.
-    The task was: "${assessment.description}"
-    The user submitted the following code in ${assessment.language}:
-    \`\`\`${assessment.language}
+    The task was: "${description}"
+    The user submitted the following code in ${language}:
+    \`\`\`${language}
     ${code}
     \`\`\`
     
@@ -80,6 +121,17 @@ export const submitAssessment = async (req: Request, res: Response) => {
     const aiPromise = ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "OBJECT" as any,
+          properties: {
+            passed: { type: "BOOLEAN" as any },
+            feedback: { type: "STRING" as any }
+          },
+          required: ["passed", "feedback"]
+        }
+      }
     });
     
     const timeoutPromise = new Promise<any>((_, reject) => 
@@ -113,11 +165,11 @@ export const submitAssessment = async (req: Request, res: Response) => {
         where: { 
           id: userId,
           NOT: {
-            verifiedSkills: { has: assessment.skill }
+            verifiedSkills: { has: skill }
           }
         },
         data: {
-          verifiedSkills: { push: assessment.skill },
+          verifiedSkills: { push: skill },
           builderScore: { increment: 50 } // Reward for passing
         }
       });
@@ -126,7 +178,7 @@ export const submitAssessment = async (req: Request, res: Response) => {
     res.json({
       passed: evaluation.passed,
       feedback: evaluation.feedback,
-      skill: assessment.skill
+      skill: skill
     });
 
   } catch (error) {
