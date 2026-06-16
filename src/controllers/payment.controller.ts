@@ -14,7 +14,7 @@ export const createOrder = async (req: Request, res: Response) => {
   try {
     // @ts-ignore
     const userId = req.userId;
-    const { amount = 1500 } = req.body; // Default 1500 INR for Pro Plan
+    const { amount = 599 } = req.body; // Default 599 INR for Pro Plan
 
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
       return res.status(500).json({ error: 'Razorpay keys are not configured' });

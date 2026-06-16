@@ -73,6 +73,35 @@ export const applyForBounty = async (req: Request, res: Response) => {
     console.error('Error applying for bounty:', error);
     res.status(500).json({ error: 'Server error' });
   }
+export const submitBounty = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { solutionLink } = req.body;
+    // @ts-ignore
+    const userId = req.userId;
+
+    const bounty = await prisma.bounty.findUnique({ where: { id } });
+    if (!bounty) return res.status(404).json({ error: 'Bounty not found' });
+    if (bounty.assigneeId !== userId) return res.status(403).json({ error: 'Only the assignee can submit the solution' });
+    if (bounty.status !== 'In Progress') return res.status(400).json({ error: 'Bounty is not in progress' });
+
+    const updatedBounty = await prisma.bounty.update({
+      where: { id },
+      data: {
+        solutionLink,
+        status: 'In Review'
+      },
+      include: {
+        owner: { select: { id: true, name: true, avatar: true, plan: true } },
+        assignee: { select: { id: true, name: true, avatar: true } }
+      }
+    });
+
+    res.json(updatedBounty);
+  } catch (error) {
+    console.error('Error submitting bounty:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
 };
 
 export const completeBounty = async (req: Request, res: Response) => {
