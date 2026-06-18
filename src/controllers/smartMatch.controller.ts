@@ -86,6 +86,7 @@ export const getSmartMatches = async (req: Request, res: Response) => {
           algorithmVersion: result.algorithmVersion,
         };
       })
+      .filter(u => u.compatibilityScore > 0)
       .sort((a, b) => b.compatibilityScore - a.compatibilityScore);
 
     // PRO: full top-10 | Free: top-3 teaser (frontend blurs them)
