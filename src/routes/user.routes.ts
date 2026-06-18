@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { updateProfile, getProfile, changePassword, deleteAccount, getDiscoverUsers, getCommunityUsers, blockUser, reportUser, getBlockedUsers, unblockUser, uploadImage, getProfileVisitors, getVisitorStats } from '../controllers/user.controller';
+import { updateProfile, getProfile, changePassword, deleteAccount, getDiscoverUsers, getCommunityUsers, getPublicCommunityUsers, blockUser, reportUser, getBlockedUsers, unblockUser, uploadImage, getProfileVisitors, getVisitorStats } from '../controllers/user.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 import { upload } from '../middlewares/upload.middleware';
 
@@ -7,6 +7,7 @@ const router = Router();
 
 router.get('/discover', authenticate, getDiscoverUsers);
 router.get('/community', authenticate, getCommunityUsers);
+router.get('/public-community', getPublicCommunityUsers);
 router.get('/visitors', authenticate, getProfileVisitors);
 router.get('/visitors/stats', authenticate, getVisitorStats);
 router.post('/upload-image', authenticate, upload.single('image'), uploadImage);

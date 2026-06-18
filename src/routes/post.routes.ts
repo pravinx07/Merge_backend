@@ -9,6 +9,7 @@ import {
   getComments,
   getTrending,
   deletePost,
+  updatePost,
   votePoll
 } from '../controllers/post.controller';
 
@@ -35,6 +36,7 @@ router.post('/upload', authenticate, upload.single('image'), (req: any, res: any
 // Posts
 router.post('/', authenticate, createPost);
 router.post('/:id/like', authenticate, likePost);
+router.put('/:id', authenticate, updatePost);
 router.delete('/:id', authenticate, deletePost);
 router.post('/:id/poll/:optionId', authenticate, votePoll);
 
