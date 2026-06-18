@@ -328,6 +328,63 @@ export const deletePost = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
+export const updatePost = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { content, codeSnippet, language } = req.body;
+    const userId = (req as any).userId;
+
+    if (!userId) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    if (!content || !content.trim()) {
+      res.status(400).json({ message: 'Content is required' });
+      return;
+    }
+
+    const post = await prisma.post.findUnique({
+      where: { id }
+    });
+
+    if (!post) {
+      res.status(404).json({ message: 'Post not found' });
+      return;
+    }
+
+    if (post.authorId !== userId) {
+      res.status(403).json({ message: 'You are not authorized to edit this post' });
+      return;
+    }
+
+    const updatedPost = await prisma.post.update({
+      where: { id },
+      data: { 
+        content,
+        codeSnippet: codeSnippet !== undefined ? codeSnippet : undefined,
+        language: language !== undefined ? language : undefined
+      },
+      include: {
+        author: {
+          select: { id: true, name: true, avatar: true, bio: true }
+        },
+        pollOptions: {
+          include: { _count: { select: { votes: true } } }
+        },
+        _count: {
+          select: { likes: true, comments: true }
+        }
+      }
+    });
+
+    res.status(200).json(updatedPost);
+  } catch (error) {
+    console.error('Error updating post:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 export const votePoll = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id, optionId } = req.params; // id is postId

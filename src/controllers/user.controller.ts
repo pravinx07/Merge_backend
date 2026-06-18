@@ -550,6 +550,29 @@ export const getCommunityUsers = async (req: Request, res: Response) => {
   }
 };
 
+export const getPublicCommunityUsers = async (req: Request, res: Response) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        avatar: true,
+        bio: true,
+        skills: true,
+        location: true,
+        status: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 4
+    });
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('Get public community users error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 export const blockUser = async (req: Request, res: Response) => {
   try {
     // @ts-ignore

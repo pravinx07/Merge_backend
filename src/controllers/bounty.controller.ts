@@ -73,6 +73,8 @@ export const applyForBounty = async (req: Request, res: Response) => {
     console.error('Error applying for bounty:', error);
     res.status(500).json({ error: 'Server error' });
   }
+};
+
 export const submitBounty = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
