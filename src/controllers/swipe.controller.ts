@@ -47,8 +47,8 @@ export const getSwipeFeed = async (req: Request, res: Response) => {
       const arr = skills.split(',').map(s => s.trim()).filter(Boolean);
       if (arr.length > 0) where.skills = { hasSome: arr };
     }
-    if (intent)          where.intent          = intent;
-    if (experienceLevel) where.experienceLevel = experienceLevel;
+    if (intent)          where.intent          = { equals: intent, mode: 'insensitive' };
+    if (experienceLevel) where.experienceLevel = { equals: experienceLevel, mode: 'insensitive' };
 
     // 3. Fetch candidates + current user in parallel
     const [candidates, currentUser] = await Promise.all([
