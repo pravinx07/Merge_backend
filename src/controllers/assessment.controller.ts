@@ -40,13 +40,26 @@ const ASSESSMENTS = [
 ];
 
 export const getAssessments = (req: Request, res: Response) => {
-  res.json([]);
+  res.json(ASSESSMENTS);
 };
 
 export const generateAssessment = async (req: Request, res: Response) => {
   try {
     const { skill } = req.body;
     if (!skill) return res.status(400).json({ error: 'Skill is required' });
+
+    // Check predefined list first to save AI tokens
+    const predefined = ASSESSMENTS.find(a => a.skill.toLowerCase() === skill.toLowerCase());
+    if (predefined) {
+      return res.json({
+        id: Date.now().toString(),
+        skill: predefined.skill,
+        title: predefined.title,
+        description: predefined.description,
+        language: predefined.language,
+        timeLimitMinutes: predefined.timeLimitMinutes
+      });
+    }
 
     const prompt = `You are a technical interviewer. Generate a short, practical coding challenge to test a developer's proficiency in "${skill}".
     The challenge should take about 15 minutes to solve.

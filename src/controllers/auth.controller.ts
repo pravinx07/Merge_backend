@@ -195,6 +195,11 @@ export const githubCallback = async (req: Request, res: Response) => {
           bio,
         },
       });
+      
+      // Send welcome email to new GitHub users
+      if (user.email && !user.email.includes('@github.com')) {
+        sendWelcomeEmail(user.email, user.name).catch(console.error);
+      }
     } else if (!user.githubId) {
       // Link GitHub to existing email account
       user = await prisma.user.update({

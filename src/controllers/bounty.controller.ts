@@ -7,7 +7,11 @@ export const getAllBounties = async (req: Request, res: Response) => {
       orderBy: { createdAt: 'desc' },
       include: {
         owner: { select: { id: true, name: true, avatar: true, plan: true } },
-        assignee: { select: { id: true, name: true, avatar: true } }
+        assignee: { select: { id: true, name: true, avatar: true } },
+        submissions: {
+          include: { user: { select: { id: true, name: true, avatar: true } } },
+          orderBy: { createdAt: 'desc' }
+        }
       }
     });
     res.json(bounties);
@@ -33,7 +37,11 @@ export const createBounty = async (req: Request, res: Response) => {
         status: 'Open'
       },
       include: {
-        owner: { select: { id: true, name: true, avatar: true, plan: true } }
+        owner: { select: { id: true, name: true, avatar: true, plan: true } },
+        assignee: { select: { id: true, name: true, avatar: true } },
+        submissions: {
+          include: { user: { select: { id: true, name: true, avatar: true } } }
+        }
       }
     });
 
@@ -54,21 +62,10 @@ export const applyForBounty = async (req: Request, res: Response) => {
     if (!bounty) return res.status(404).json({ error: 'Bounty not found' });
     if (bounty.status !== 'Open') return res.status(400).json({ error: 'Bounty is not open' });
 
-    // For simplicity MVP, applying directly assigns the user. 
-    // In a real app, this would create an application, and the owner would approve.
-    const updatedBounty = await prisma.bounty.update({
-      where: { id },
-      data: {
-        assigneeId: userId,
-        status: 'In Progress'
-      },
-      include: {
-        owner: { select: { id: true, name: true, avatar: true, plan: true } },
-        assignee: { select: { id: true, name: true, avatar: true } }
-      }
-    });
-
-    res.json(updatedBounty);
+    // Let developers "apply" by just showing interest, but don't close the gig.
+    // In this multiple submission model, we might just use submit directly, but we can keep apply as a "watch/interest" flag if needed.
+    // For now, we don't strictly need it, but we'll return the bounty as-is or remove this route.
+    res.json(bounty);
   } catch (error) {
     console.error('Error applying for bounty:', error);
     res.status(500).json({ error: 'Server error' });
@@ -84,18 +81,33 @@ export const submitBounty = async (req: Request, res: Response) => {
 
     const bounty = await prisma.bounty.findUnique({ where: { id } });
     if (!bounty) return res.status(404).json({ error: 'Bounty not found' });
-    if (bounty.assigneeId !== userId) return res.status(403).json({ error: 'Only the assignee can submit the solution' });
-    if (bounty.status !== 'In Progress') return res.status(400).json({ error: 'Bounty is not in progress' });
+    if (bounty.status !== 'Open') return res.status(400).json({ error: 'Bounty is not open for submissions' });
 
-    const updatedBounty = await prisma.bounty.update({
-      where: { id },
+    // Check if user already submitted
+    const existing = await prisma.bountySubmission.findFirst({
+      where: { bountyId: id, userId }
+    });
+    if (existing) return res.status(400).json({ error: 'You have already submitted a solution for this gig' });
+
+    // Create submission
+    await prisma.bountySubmission.create({
       data: {
+        bountyId: id,
+        userId,
         solutionLink,
-        status: 'In Review'
-      },
+        status: 'Pending'
+      }
+    });
+
+    const updatedBounty = await prisma.bounty.findUnique({
+      where: { id },
       include: {
         owner: { select: { id: true, name: true, avatar: true, plan: true } },
-        assignee: { select: { id: true, name: true, avatar: true } }
+        assignee: { select: { id: true, name: true, avatar: true } },
+        submissions: {
+          include: { user: { select: { id: true, name: true, avatar: true } } },
+          orderBy: { createdAt: 'desc' }
+        }
       }
     });
 
@@ -106,9 +118,9 @@ export const submitBounty = async (req: Request, res: Response) => {
   }
 };
 
-export const completeBounty = async (req: Request, res: Response) => {
+export const acceptSubmission = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id, submissionId } = req.params;
     // @ts-ignore
     const userId = req.userId;
 
@@ -118,21 +130,38 @@ export const completeBounty = async (req: Request, res: Response) => {
     });
 
     if (!bounty) return res.status(404).json({ error: 'Bounty not found' });
-    if (bounty.ownerId !== userId) return res.status(403).json({ error: 'Only the owner can complete this bounty' });
+    if (bounty.ownerId !== userId) return res.status(403).json({ error: 'Only the owner can accept submissions' });
+
+    const submission = await prisma.bountySubmission.findUnique({ where: { id: submissionId } });
+    if (!submission) return res.status(404).json({ error: 'Submission not found' });
 
     // Platform fee logic based on Monetization
-    // 10% platform fee, 0% for Pro users.
     const isPro = bounty.owner.plan === 'pro';
     const platformFeePercentage = isPro ? 0 : 0.10;
     const platformFeeAmount = bounty.amount * platformFeePercentage;
     const finalPayout = bounty.amount - platformFeeAmount;
 
+    // Update submission status
+    await prisma.bountySubmission.update({
+      where: { id: submissionId },
+      data: { status: 'Accepted' }
+    });
+
+    // Complete bounty
     const updatedBounty = await prisma.bounty.update({
       where: { id },
-      data: { status: 'Completed' },
+      data: { 
+        status: 'Completed',
+        assigneeId: submission.userId,
+        solutionLink: submission.solutionLink
+      },
       include: {
         owner: { select: { id: true, name: true, avatar: true, plan: true } },
-        assignee: { select: { id: true, name: true, avatar: true } }
+        assignee: { select: { id: true, name: true, avatar: true } },
+        submissions: {
+          include: { user: { select: { id: true, name: true, avatar: true } } },
+          orderBy: { createdAt: 'desc' }
+        }
       }
     });
 
@@ -146,7 +175,7 @@ export const completeBounty = async (req: Request, res: Response) => {
       }
     });
   } catch (error) {
-    console.error('Error completing bounty:', error);
+    console.error('Error accepting submission:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
