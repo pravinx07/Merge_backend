@@ -3,8 +3,14 @@ import prisma from '../Config/prisma';
 
 export const getAllBounties = async (req: Request, res: Response) => {
   try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
+
     const bounties = await prisma.bounty.findMany({
       orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
       include: {
         owner: { select: { id: true, name: true, avatar: true, plan: true } },
         assignee: { select: { id: true, name: true, avatar: true } },

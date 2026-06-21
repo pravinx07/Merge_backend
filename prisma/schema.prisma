@@ -58,6 +58,10 @@ model User {
   builderRating       Float    @default(0.0)
   activityLevel       String   @default("Active")
 
+  @@index([builderScore(sort: Desc)])
+  @@index([plan])
+  @@index([intent])
+
   // Relations
   sentLikes     Like[]    @relation("SentLikes")
   receivedLikes Like[]    @relation("ReceivedLikes")
@@ -310,6 +314,9 @@ model Post {
   comments    Comment[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+
+  @@index([createdAt(sort: Desc)])
+  @@index([authorId])
 }
 
 model PollOption {
@@ -441,6 +448,10 @@ model Bounty {
   submissions BountySubmission[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([createdAt(sort: Desc)])
+  @@index([status])
+  @@index([ownerId])
 }
 
 model BountySubmission {
