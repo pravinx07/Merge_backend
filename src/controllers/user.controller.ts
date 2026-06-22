@@ -178,10 +178,34 @@ export const getProfile = async (req: Request, res: Response) => {
     }
 
     let compatibilityScore = 0;
+    let matchStatus = 'none';
+    
     if (token && !isOwner) {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey123') as any;
         const currentUser = await prisma.user.findUnique({ where: { id: decoded.userId } });
+        
+        // Calculate match status
+        const currentUserId = decoded.userId;
+        const match = await prisma.match.findFirst({
+          where: {
+            OR: [
+              { user1Id: currentUserId, user2Id: id },
+              { user1Id: id, user2Id: currentUserId }
+            ]
+          }
+        });
+
+        if (match) {
+          matchStatus = 'matched';
+        } else {
+          const like = await prisma.like.findFirst({
+            where: { senderId: currentUserId, receiverId: id }
+          });
+          if (like) matchStatus = 'pending';
+        }
+
+        // Calculate compatibility
         if (currentUser && user) {
           const sharedSkills = user.skills.filter(s => currentUser.skills.includes(s));
           const totalSkills = Array.from(new Set([...user.skills, ...currentUser.skills])).length;
@@ -199,7 +223,7 @@ export const getProfile = async (req: Request, res: Response) => {
 
     // @ts-ignore
     delete user.password;
-    res.status(200).json({ ...user, compatibilityScore: Math.round(compatibilityScore) || 0 });
+    res.status(200).json({ ...user, matchStatus, compatibilityScore: Math.round(compatibilityScore) || 0 });
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({ message: 'Internal server error' });
