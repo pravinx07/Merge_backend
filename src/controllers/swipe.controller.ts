@@ -30,6 +30,7 @@ export const getSwipeFeed = async (req: Request, res: Response) => {
     const skills        = req.query.skills        as string | undefined;
     const intent        = req.query.intent        as string | undefined;
     const experienceLevel = req.query.experienceLevel as string | undefined;
+    const search        = req.query.search        as string | undefined;
 
     // 1. Collect IDs to exclude
     const [likedIds, skippedIds] = await Promise.all([
@@ -49,6 +50,12 @@ export const getSwipeFeed = async (req: Request, res: Response) => {
     }
     if (intent)          where.intent          = { equals: intent, mode: 'insensitive' };
     if (experienceLevel) where.experienceLevel = { equals: experienceLevel, mode: 'insensitive' };
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { bio: { contains: search, mode: 'insensitive' } }
+      ];
+    }
 
     // 3. Fetch candidates + current user in parallel
     const [candidates, currentUser] = await Promise.all([
